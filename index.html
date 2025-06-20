@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Thermal Management Calculator v0.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style type="text/tailwindcss">
+        /* v0.1 "Bio-Sim" Theme */
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+        }
+
+        .transition-all {
+            transition: all 0.4s ease-in-out;
+        }
+
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
+            border-color: #8b5cf6;
+        }
+
+        .input-field {
+            margin-top: 0.25rem; /* mt-1 */
+            display: block; /* block */
+            width: 100%; /* w-full */
+            background-color: #111827; /* bg-gray-900 */
+            border: 1px solid #374151; /* border-gray-700 */
+            border-radius: 0.375rem; /* rounded-md */
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
+            color: #ffffff; /* text-white */
+        }
+
+        .input-field::placeholder {
+            color: #6b7280; /* placeholder-gray-500 */
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #8b5cf6; /* focus:border-violet-500 */
+            box-shadow: 0 0 0 3px rgb(139 92 246 / 0.5); /* focus:ring-violet-500 */
+        }
+
+        .btn-secondary {
+            padding: 0.5rem 1rem; /* px-4 py-2 */
+            background-color: #1f2937; /* bg-gray-800 */
+            color: #ffffff; /* text-white */
+            font-weight: 600; /* font-semibold */
+            border-radius: 0.375rem; /* rounded-md */
+            transition: all 0.2s; /* transition-all */
+        }
+
+        .btn-secondary:hover {
+            background-color: #374151; /* hover:bg-gray-700 */
+        }
+
+        .btn-secondary:focus {
+            outline: none; /* focus:outline-none */
+            box-shadow: 0 0 0 2px #8b5cf6, 0 0 0 4px #111827; /* ring */
+        }
+
+        .chart-line {
+            transition: d 0.5s ease-in-out;
+        }
+
+        .status-indicator {
+            padding: 0.25rem 0.75rem; /* px-3 py-1 */
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 500; /* font-medium */
+            border-radius: 9999px; /* rounded-full */
+            transition: background-color 0.2s, color 0.2s; /* transition-colors */
+        }
+
+        .status-inactive {
+            background-color: #374151; /* bg-gray-700 */
+            color: #9ca3af; /* text-gray-400 */
+        }
+
+        .status-active {
+            background-color: #eab308; /* bg-yellow-500 */
+            color: #000000; /* text-black */
+        }
+
+        .status-sweating {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: #ffffff; /* text-white */
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white"><span data-t="main_title"></span> <span
+                    class="text-base bg-violet-600 text-white rounded-full px-3 py-1 align-middle"
+                    data-t="version_badge"></span>
+            </h1>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <div class="space-y-6">
+                <div class="card p-6 rounded-xl transition-all card-hover">
+                    <h2 class="text-xl font-bold mb-4 text-white border-l-4 border-violet-400 pl-3"
+                        data-t="param_input"></h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="gender" class="block text-sm font-medium text-gray-300" data-t="gender"></label>
+                            <select id="gender" class="input-field">
+                                <option value="male" data-t="male"></option>
+                                <option value="female" data-t="female"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="height" class="block text-sm font-medium text-gray-300" data-t="height"></label>
+                            <input type="number" id="height" value="175" class="input-field">
+                        </div>
+                        <div>
+                            <label for="weight" class="block text-sm font-medium text-gray-300" data-t="weight"></label>
+                            <input type="number" id="weight" value="70" class="input-field">
+                        </div>
+                        <div>
+                            <label for="age" class="block text-sm font-medium text-gray-300" data-t="age"></label>
+                            <input type="number" id="age" value="30" class="input-field">
+                        </div>
+                        <div>
+                            <label for="core-temp" class="block text-sm font-medium text-gray-300"
+                                data-t="core_temp"></label>
+                            <input type="number" id="core-temp" value="36.6" step="0.1" class="input-field">
+                        </div>
+                        <div>
+                            <label for="temperature" class="block text-sm font-medium text-gray-300"
+                                data-t="temperature"></label>
+                            <input type="number" id="temperature" value="5" class="input-field">
+                        </div>
+                        <div>
+                            <label for="wind" class="block text-sm font-medium text-gray-300"
+                                data-t="wind_speed"></label>
+                            <input type="number" id="wind" value="15" class="input-field">
+                        </div>
+                        <div>
+                            <label for="humidity" class="block text-sm font-medium text-gray-300"
+                                data-t="humidity"></label>
+                            <input type="number" id="humidity" value="50" step="1" min="0" max="100"
+                                class="input-field">
+                        </div>
+                        <div class="flex items-center mt-6">
+                            <div class="relative flex items-start">
+                                <div class="flex items-center h-5"><input id="sunshine" type="checkbox"
+                                        class="h-4 w-4 text-violet-600 bg-gray-700 border-gray-600 rounded focus:ring-violet-500">
+                                </div>
+                                <div class="ml-3 text-sm"><label for="sunshine" class="font-medium text-gray-300"
+                                        data-t="sunshine"></label></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="activity" class="block text-sm font-medium text-gray-300"
+                                data-t="activity_level"></label>
+                            <select id="activity" class="input-field">
+                                <option value="1.0" data-t="activity_sit"></option>
+                                <option value="1.2" data-t="activity_office"></option>
+                                <option value="1.5" data-t="activity_light"></option>
+                                <option value="2.0" data-t="activity_walk"></option>
+                                <option value="3.0" data-t="activity_brisk_walk"></option>
+                                <option value="6.0" data-t="activity_jog"></option>
+                                <option value="8.0" data-t="activity_run"></option>
+                                <option value="10.0" data-t="activity_vigorous"></option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="duration" class="block text-sm font-medium text-gray-300"
+                                data-t="exposure_duration"></label>
+                            <input type="number" id="duration" value="60" class="input-field">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-6 rounded-xl transition-all card-hover">
+                    <h2 class="text-xl font-bold mb-4 text-white border-l-4 border-cyan-400 pl-3"
+                        data-t="outfit_composition"></h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-300" data-t="add_clothing"></label>
+                            <div class="flex space-x-2"><select id="clothing-item"
+                                    class="input-field flex-grow"></select><button id="add-clothing-btn"
+                                    class="btn-secondary" data-t="add_btn"></button></div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium text-gray-300" data-t="current_outfit"></label>
+                            <div id="current-outfit-list"
+                                class="space-y-2 min-h-[8rem] max-h-56 overflow-y-auto p-2 rounded-md bg-gray-900 border border-gray-700">
+                                <p id="empty-outfit-msg" class="text-gray-500 italic" data-t="empty_outfit"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="card p-6 rounded-xl">
+                    <h2 class="text-xl font-bold mb-4 text-white border-l-4 border-fuchsia-500 pl-3"
+                        data-t="dashboard_title"></h2>
+                    <div id="simulation-results-container" class="text-center">
+                        <div class="mb-6">
+                            <p class="text-sm text-gray-400" data-t="core_temp_prediction"></p>
+                            <div id="simulation-summary"
+                                class="text-4xl font-bold p-3 rounded-lg h-24 flex items-center justify-center transition-all duration-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <p class="text-sm text-gray-400" data-t="total_clo"></p>
+                                <p id="total-clo" class="text-2xl font-semibold text-violet-300">0.00 Clo</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-400" data-t="physiological_status"></p>
+                                <div id="physiology-status-container" class="flex justify-center items-center h-10">
+                                    <p id="physiology-status-text" class="text-lg font-semibold text-green-400"
+                                        data-t="status_stable">
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="chart-container"
+                            class="w-full h-56 bg-gray-900 rounded-lg p-2 mt-4 border border-gray-700">
+                            <svg id="simulation-chart" width="100%" height="100%" viewBox="0 0 100 60"></svg>
+                        </div>
+
+                        <div id="detailed-status-container" class="mt-6 text-left">
+                            <h3 class="text-lg font-bold mb-3 text-white border-b-2 border-gray-700 pb-1"
+                                data-t="detailed_status_title"></h3>
+                            <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                <!-- Heat Gain -->
+                                <div class="text-green-400 font-semibold" data-t="heat_gain"></div>
+                                <div></div>
+                                <div class="pl-4" data-t="metabolic_gain"></div>
+                                <div id="detail-metabolic" class="text-right font-mono">0 W</div>
+                                <div class="pl-4" data-t="solar_gain"></div>
+                                <div id="detail-solar" class="text-right font-mono">0 W</div>
+                                <!-- Heat Loss -->
+                                <div class="text-red-400 font-semibold mt-2" data-t="heat_loss"></div>
+                                <div></div>
+                                <div class="pl-4" data-t="respiratory_loss"></div>
+                                <div id="detail-respiratory" class="text-right font-mono">0 W</div>
+                                <div class="pl-4" data-t="dry_loss"></div>
+                                <div id="detail-dry" class="text-right font-mono">0 W</div>
+                                <div class="pl-4" data-t="sweat_loss"></div>
+                                <div id="detail-sweat" class="text-right font-mono">0 W</div>
+                                <!-- Net -->
+                                <div class="text-yellow-400 font-semibold mt-2" data-t="net_rate"></div>
+                                <div id="detail-net" class="text-right font-mono font-bold">0 W</div>
+                                <!-- Response -->
+                                <div class="text-blue-400 font-semibold mt-2" data-t="physiological_response"></div>
+                                <div></div>
+                                <div class="pl-4" data-t="shivering_intensity"></div>
+                                <div id="detail-shivering" class="text-right font-mono">0 %</div>
+                                <div class="pl-4" data-t="sweating_intensity"></div>
+                                <div id="detail-sweating" class="text-right font-mono">0 %</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const bodyRegions = { head: 0.07, torso: 0.35, arms: 0.14, hands: 0.05, legs: 0.32, feet: 0.07 };
+        const translations = {
+            en: {
+                page_title: "Human Thermal Management Calculator v0.1",
+                main_title: "Human Thermal Management Calculator",
+                version_badge: "v0.1 Bio-Compensatory",
+                param_input: "Parameter Input",
+                gender: "Physiological Gender",
+                male: "Male",
+                female: "Female",
+                height: "Height (cm)",
+                weight: "Weight (kg)",
+                age: "Age (years)",
+                core_temp: "Standard Body Temp (°C)",
+                temperature: "Air Temperature (°C)",
+                wind_speed: "Wind Speed (km/h)",
+                humidity: "Relative Humidity (%)",
+                sunshine: "Sunny",
+                activity_level: "Activity Level",
+                activity_sit: "Sitting",
+                activity_office: "Office Work",
+                activity_light: "Light Activity",
+                activity_walk: "Walking",
+                activity_brisk_walk: "Brisk Walking",
+                activity_jog: "Jogging",
+                activity_run: "Running",
+                activity_vigorous: "Vigorous Exercise",
+                exposure_duration: "Exposure Duration (min)",
+                outfit_composition: "Outfit Composition",
+                add_clothing: "Add Garment",
+                add_btn: "Add",
+                current_outfit: "Current Outfit",
+                empty_outfit: "Empty...",
+                dashboard_title: "Real-time Physiological Simulation Dashboard",
+                core_temp_prediction: "Predicted Core Temperature Change",
+                total_clo: "Total Clothing Insulation",
+                physiological_status: "Physiological Response",
+                status_stable: "Physiologically Stable",
+                detailed_status_title: "Detailed Final Status",
+                heat_gain: "Heat Gain",
+                metabolic_gain: "Metabolic Heat",
+                solar_gain: "Solar Radiation Gain",
+                heat_loss: "Heat Loss",
+                respiratory_loss: "Respiratory Heat Loss",
+                dry_loss: "Dry Skin Heat Loss",
+                sweat_loss: "Sweat Evaporation",
+                net_rate: "Net Change Rate",
+                physiological_response: "Physiological Response",
+                shivering_intensity: "Shivering Intensity",
+                sweating_intensity: "Sweating Intensity",
+                remove_btn: "Remove",
+                vasoconstriction: 'Vasoconstriction',
+                vasodilation: 'Vasodilation',
+                shivering: 'Shivering',
+                sweating: 'Sweating',
+                summary_hypothermia: "Hypothermia Risk",
+                summary_very_cold: "Very Cold",
+                summary_cold: "Cold",
+                summary_cool: "Cool",
+                summary_comfortable: "Comfortable",
+                summary_warm: "Warm",
+                summary_hot: "Hot",
+                summary_overheating: "Overheating Risk",
+                cat_base: "Base Layer",
+                cat_mid: "Mid Layer",
+                cat_outer: "Outer Layer",
+                cat_bottoms: "Bottoms",
+                cat_full: "Full Body",
+                cat_acc: "Accessories",
+            },
+            zh: {
+                page_title: "人体热量管理计算器 v0.1",
+                main_title: "人体热量管理计算器",
+                version_badge: "v0.1",
+                param_input: "参数输入",
+                gender: "生理性别",
+                male: "男性",
+                female: "女性",
+                height: "身高 (cm)",
+                weight: "体重 (kg)",
+                age: "年龄 (岁)",
+                core_temp: "标准体温 (°C)",
+                temperature: "气温 (°C)",
+                wind_speed: "风速 (km/h)",
+                humidity: "相对湿度 (%)",
+                sunshine: "阳光明媚",
+                activity_level: "活动水平",
+                activity_sit: "静坐",
+                activity_office: "办公室工作",
+                activity_light: "轻度活动",
+                activity_walk: "散步",
+                activity_brisk_walk: "快走",
+                activity_jog: "慢跑",
+                activity_run: "跑步",
+                activity_vigorous: "剧烈运动",
+                exposure_duration: "暴露时长 (分钟)",
+                outfit_composition: "穿搭组合",
+                add_clothing: "添加衣物",
+                add_btn: "添加",
+                current_outfit: "当前穿搭清单",
+                empty_outfit: "空空如也...",
+                dashboard_title: "实时生理仿真仪表盘",
+                core_temp_prediction: "预测核心体温变化",
+                total_clo: "衣物总隔热值",
+                physiological_status: "生理反应状态",
+                status_stable: "生理状态稳定",
+                detailed_status_title: "详细最终状态",
+                heat_gain: "热量增益",
+                metabolic_gain: "代谢产热",
+                solar_gain: "太阳辐射增益",
+                heat_loss: "热量散失",
+                respiratory_loss: "呼吸散热",
+                dry_loss: "皮肤干性散热",
+                sweat_loss: "出汗蒸发",
+                net_rate: "净变化率",
+                physiological_response: "生理反应",
+                shivering_intensity: "战栗强度",
+                sweating_intensity: "出汗强度",
+                remove_btn: "移除",
+                vasoconstriction: '血管收缩',
+                vasodilation: '血管舒张',
+                shivering: '战栗产热',
+                sweating: '出汗',
+                summary_hypothermia: "低温症风险",
+                summary_very_cold: "非常寒冷",
+                summary_cold: "比较寒冷",
+                summary_cool: "感觉微凉",
+                summary_comfortable: "体感舒适",
+                summary_warm: "感觉微热",
+                summary_hot: "比较炎热",
+                summary_overheating: "过热风险",
+                cat_base: "贴身层",
+                cat_mid: "中间层",
+                cat_outer: "外层",
+                cat_bottoms: "下装",
+                cat_full: "全身",
+                cat_acc: "配饰",
+            }
+        };
+
+        const clothingData = {
+            // Base Layer
+            "base_underwear": { name: "普通内衣裤", name_en: "Regular Underwear", coverage: { torso: 0.04, legs: 0.02 }, category: "cat_base" },
+            "base_sports_bra": { name: "运动内衣", name_en: "Sports Bra", coverage: { torso: 0.03 }, category: "cat_base" },
+            "base_t_shirt": { name: "棉质T恤", name_en: "Cotton T-shirt", coverage: { torso: 0.10, arms: 0.05 }, category: "cat_base" },
+            "base_synthetic_tshirt": { name: "速干T恤", name_en: "Synthetic T-shirt", coverage: { torso: 0.12, arms: 0.06 }, category: "cat_base" },
+            "base_tank_top": { name: "背心", name_en: "Tank Top", coverage: { torso: 0.06 }, category: "cat_base" },
+            "base_silk_long": { name: "真丝长内衣", name_en: "Silk Long Underwear", coverage: { torso: 0.10, arms: 0.08, legs: 0.10 }, category: "cat_base" },
+            "base_thermal_long": { name: "长袖保暖内衣", name_en: "Thermal Long Underwear", coverage: { torso: 0.25, arms: 0.20, legs: 0.25 }, category: "cat_base" },
+            // Mid Layer
+            "mid_long_sleeve_shirt": { name: "长袖衬衫", name_en: "Long-sleeve Shirt", coverage: { torso: 0.22, arms: 0.14 }, category: "cat_mid" },
+            "mid_flannel_shirt": { name: "法兰绒衬衫", name_en: "Flannel Shirt", coverage: { torso: 0.30, arms: 0.20 }, category: "cat_mid" },
+            "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", coverage: { torso: 0.32, arms: 0.18 }, category: "cat_mid" },
+            "mid_thin_sweater": { name: "薄款毛衣", name_en: "Thin Sweater", coverage: { torso: 0.28, arms: 0.18 }, category: "cat_mid" },
+            "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
+            "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", coverage: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
+            "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
+            "mid_thick_sweater": { name: "厚款毛衣", name_en: "Thick Sweater", coverage: { torso: 0.45, arms: 0.30 }, category: "cat_mid" },
+            "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", coverage: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
+            "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", coverage: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
+            // Outer Layer
+            "outer_cardigan": { name: "开衫", name_en: "Cardigan", coverage: { torso: 0.25, arms: 0.16 }, category: "cat_outer" },
+            "outer_blazer": { name: "西装外套", name_en: "Blazer", coverage: { torso: 0.35, arms: 0.22 }, category: "cat_outer" },
+            "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", coverage: { torso: 0.28, arms: 0.18 }, category: "cat_outer" },
+            "outer_leather_jacket": { name: "皮夹克", name_en: "Leather Jacket", coverage: { torso: 0.30, arms: 0.20 }, category: "cat_outer" },
+            "outer_windbreaker": { name: "风衣", name_en: "Windbreaker", coverage: { torso: 0.25, arms: 0.15, legs: 0.10 }, category: "cat_outer" },
+            "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", coverage: { head: 0.10, torso: 0.30, arms: 0.20 }, category: "cat_outer" },
+            "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", coverage: { torso: 0.55 }, category: "cat_outer" },
+            "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", coverage: { torso: 0.80, arms: 0.50, legs: 0.15 }, category: "cat_outer" },
+            "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", coverage: { head: 0.15, torso: 1.20, arms: 0.80 }, category: "cat_outer" },
+            "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", coverage: { head: 0.20, torso: 0.60, arms: 0.45 }, category: "cat_outer" },
+            "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", coverage: { head: 0.30, torso: 2.00, arms: 1.20, legs: 0.20 }, category: "cat_outer" },
+            "outer_cloak": { name: "斗篷/披风", name_en: "Cloak/Cape", coverage: { head: 0.05, torso: 0.45, arms: 0.15 }, category: "cat_outer" },
+            "outer_poncho": { name: "雨披", name_en: "Poncho", coverage: { head: 0.08, torso: 0.35, arms: 0.10 }, category: "cat_outer" },
+            // Bottoms
+            "pants_shorts": { name: "短裤", name_en: "Shorts", coverage: { legs: 0.08 }, category: "cat_bottoms" },
+            "pants_mini_skirt": { name: "迷你裙", name_en: "Mini Skirt", coverage: { legs: 0.05 }, category: "cat_bottoms" },
+            "pants_pleated_skirt": { name: "百褶裙", name_en: "Pleated Skirt", coverage: { legs: 0.15 }, category: "cat_bottoms" },
+            "pants_knee_length_skirt": { name: "及膝裙", name_en: "Knee-length Skirt", coverage: { legs: 0.20 }, category: "cat_bottoms" },
+            "pants_long_skirt": { name: "长裙", name_en: "Long Skirt", coverage: { legs: 0.28 }, category: "cat_bottoms" },
+            "pants_leggings": { name: "打底裤", name_en: "Leggings", coverage: { legs: 0.15 }, category: "cat_bottoms" },
+            "pants_fleece_lined_leggings": { name: "抓绒打底裤", name_en: "Fleece-lined Leggings", coverage: { legs: 0.35 }, category: "cat_bottoms" },
+            "pants_trousers": { name: "西裤/休闲裤", name_en: "Trousers/Pants", coverage: { legs: 0.28 }, category: "cat_bottoms" },
+            "pants_jeans": { name: "牛仔裤", name_en: "Jeans", coverage: { legs: 0.32 }, category: "cat_bottoms" },
+            "pants_cargo_pants": { name: "工装裤", name_en: "Cargo Pants", coverage: { legs: 0.30 }, category: "cat_bottoms" },
+            "pants_sweatpants": { name: "运动裤", name_en: "Sweatpants", coverage: { legs: 0.30 }, category: "cat_bottoms" },
+            "pants_softshell_trousers": { name: "软壳裤", name_en: "Softshell Trousers", coverage: { legs: 0.50 }, category: "cat_bottoms" },
+            "pants_insulated": { name: "保暖裤", name_en: "Insulated Pants", coverage: { legs: 0.60 }, category: "cat_bottoms" },
+            "pants_ski": { name: "滑雪裤", name_en: "Ski Pants", coverage: { legs: 1.00 }, category: "cat_bottoms" },
+            // Full Body
+            "full_dress": { name: "连衣裙", name_en: "Dress", coverage: { torso: 0.28, arms: 0.18, legs: 0.20 }, category: "cat_full" },
+            "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", coverage: { torso: 0.35, arms: 0.22, legs: 0.28 }, category: "cat_full" },
+            // Accessories
+            "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", coverage: { legs: 0.01, feet: 0.00 }, category: "cat_acc" },
+            "acc_tights": { name: "连裤袜", name_en: "Tights", coverage: { legs: 0.05, feet: 0.01 }, category: "cat_acc" },
+            "acc_thin_socks": { name: "薄袜子", name_en: "Thin Socks", coverage: { feet: 0.04 }, category: "cat_acc" },
+            "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", coverage: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
+            "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", coverage: { feet: 0.10 }, category: "cat_acc" },
+            "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", coverage: { feet: 0.05 }, category: "cat_acc" },
+            "acc_boots": { name: "靴子", name_en: "Boots", coverage: { feet: 0.12, legs: 0.06 }, category: "cat_acc" },
+            "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", coverage: { feet: 0.25, legs: 0.10 }, category: "cat_acc" },
+            "acc_thin_gloves": { name: "薄手套", name_en: "Thin Gloves", coverage: { hands: 0.15 }, category: "cat_acc" },
+            "acc_insulated_gloves": { name: "保暖手套", name_en: "Insulated Gloves", coverage: { hands: 0.35 }, category: "cat_acc" },
+            "acc_mittens": { name: "连指厚手套", name_en: "Mittens", coverage: { hands: 0.40 }, category: "cat_acc" },
+            "acc_scarf": { name: "围巾", name_en: "Scarf", coverage: { torso: 0.20 }, category: "cat_acc" },
+            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", coverage: { torso: 0.18 }, category: "cat_acc" },
+            "acc_beanie": { name: "毛线帽", name_en: "Beanie", coverage: { head: 0.25 }, category: "cat_acc" },
+            "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", coverage: { head: 0.10 }, category: "cat_acc" },
+            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", coverage: { head: 0.40 }, category: "cat_acc" },
+        };
+        let currentOutfit = [];
+        let debounceTimer;
+        let currentLang = 'zh';
+
+        const dom = {
+            gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), sunshine: document.getElementById('sunshine'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
+            physiologyStatusText: document.getElementById('physiology-status-text'),
+            coreTemp: document.getElementById('core-temp'),
+            detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang.startsWith('en') ? 'en' : 'zh';
+            const t = translations[currentLang];
+            document.title = t.page_title;
+            document.querySelectorAll('[data-t]').forEach(el => {
+                const key = el.dataset.t;
+                if (t[key]) {
+                    el.textContent = t[key];
+                }
+            });
+            populateClothingSelect();
+            updateOutfitUI();
+            triggerSimulation();
+        }
+
+        function populateClothingSelect() {
+            dom.clothingItem.innerHTML = '';
+            const t = translations[currentLang];
+            const categories = {};
+            for (const key in clothingData) {
+                const item = clothingData[key];
+                if (!categories[item.category]) categories[item.category] = [];
+                categories[item.category].push({ key, ...item });
+            }
+            const categoryOrder = ["cat_base", "cat_mid", "cat_outer", "cat_bottoms", "cat_full", "cat_acc"];
+            for (const catKey of categoryOrder) {
+                if (!categories[catKey]) continue;
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = `--- ${t[catKey]} ---`;
+                categories[catKey].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.key;
+                    option.textContent = currentLang === 'en' ? item.name_en : item.name;
+                    optgroup.appendChild(option);
+                });
+                dom.clothingItem.appendChild(optgroup);
+            }
+        }
+
+        function updateOutfitUI() {
+            dom.outfitList.innerHTML = '';
+            const t = translations[currentLang];
+            if (currentOutfit.length === 0) {
+                const p = document.createElement('p');
+                p.className = 'text-gray-500 italic';
+                p.dataset.t = 'empty_outfit';
+                p.textContent = t.empty_outfit;
+                dom.outfitList.appendChild(p);
+            } else {
+                currentOutfit.forEach((item, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md animate-fade-in';
+                    const name = currentLang === 'en' ? item.name_en : item.name;
+                    itemDiv.innerHTML = `<span>${name}</span><button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>`;
+                    dom.outfitList.appendChild(itemDiv);
+                });
+            }
+            document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', handleRemoveClothing));
+            triggerSimulation();
+        }
+
+        function calculateTotalClothingClo() {
+            const LAYERING_EFFICIENCY = 0.85;
+            const regionalClo = {};
+            for (const regionKey in bodyRegions) {
+                const layersForRegion = currentOutfit.filter(item => item.coverage.hasOwnProperty(regionKey)).map(item => item.coverage[regionKey]).sort((a, b) => b - a);
+                let effectiveClo = 0, efficiency = 1.0;
+                for (const layerClo of layersForRegion) { effectiveClo += layerClo * efficiency; efficiency *= LAYERING_EFFICIENCY; }
+                regionalClo[regionKey] = effectiveClo;
+            }
+            let finalWeightedClo = 0;
+            for (const regionKey in bodyRegions) { finalWeightedClo += regionalClo[regionKey] * bodyRegions[regionKey]; }
+            dom.totalClo.textContent = `${finalWeightedClo.toFixed(2)} Clo`;
+            return finalWeightedClo;
+        }
+
+        function runSimulation() {
+            const gender = dom.gender.value;
+            const heightCm = parseFloat(dom.height.value);
+            const weightKg = parseFloat(dom.weight.value);
+            const age = parseInt(dom.age.value);
+            const coreTemp = parseFloat(dom.coreTemp.value);
+
+            if (isNaN(heightCm) || isNaN(weightKg) || isNaN(age) || isNaN(coreTemp) || heightCm <= 0 || weightKg <= 0 || age <= 0) return;
+
+            const clothingClo = calculateTotalClothingClo();
+            const initialMetValue = parseFloat(dom.activity.value);
+            const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), isSunny = dom.sunshine.checked, durationMins = parseInt(dom.duration.value);
+
+            if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
+
+            const BSA = 0.007184 * Math.pow(heightCm, 0.725) * Math.pow(weightKg, 0.425);
+            const bmi = weightKg / Math.pow(heightCm / 100, 2);
+            const bodyFatPercentage = gender === 'female' ? (1.20 * bmi) + (0.23 * age) - 5.4 : (1.20 * bmi) + (0.23 * age) - 16.2;
+            const bodyHeatCapacity = (3470 * (1 - bodyFatPercentage / 100) + 1250 * (bodyFatPercentage / 100)) * weightKg;
+            const T_CORE_INITIAL = coreTemp;
+            const CLO_TO_SI = 0.155;
+
+            // BMR calculation using Mifflin-St Jeor equation (kcal/day)
+            let bmrKcal;
+            if (gender === 'female') {
+                bmrKcal = (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
+            } else {
+                bmrKcal = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+            }
+            const bmrWatts = bmrKcal * 0.04843; // Convert kcal/day to Watts
+
+            // Physiological response thresholds and parameters (cold)
+            const SHIVERING_THRESHOLD = coreTemp - 0.3;
+            const MAX_SHIVERING_MET_INCREASE = 2.5; // A multiplier on BMR
+
+            // Physiological response thresholds and parameters (hot)
+            const SWEATING_THRESHOLD = coreTemp + 0.3;
+            const MAX_SWEATING_HEAT_LOSS_WATTS = 150;
+
+            // Solar radiation parameters
+            const SOLAR_GAIN_WATTS_PER_M2 = 100; // Solar radiation energy absorbed per m^2 of body surface (W/m^2) on a sunny day
+            const SOLAR_PROJECTION_FACTOR = 0.5;  // Effective body area exposed to the sun
+
+            // New two-node model helper functions
+            const calculateRespiratoryLoss = (metabolicWatts, airTempC, rh) => {
+                const p_sat_air_kpa = 0.61121 * Math.exp((18.678 - airTempC / 234.5) * (airTempC / (257.14 + airTempC)));
+                const p_vapor_air_kpa = rh * p_sat_air_kpa;
+                const loss_sensible = 0.0014 * metabolicWatts * (34 - airTempC);
+                const loss_latent = 0.0173 * metabolicWatts * (5.32 - p_vapor_air_kpa); // 5.32 kPa is saturated water vapor pressure at 34°C
+                return Math.max(0, loss_sensible + loss_latent);
+            };
+
+            const calculateTissueInsulation = (currentCoreTemp, setPointTemp) => {
+                const I_TISSUE_BASAL_SI = 0.027, I_TISSUE_MAX_SI = 0.054, I_TISSUE_MIN_SI = 0.009;
+                const tempDiff = currentCoreTemp - setPointTemp;
+                if (tempDiff < -0.1) { // Vasoconstriction
+                    const constrictionFactor = Math.min(1, (-tempDiff - 0.1) / 0.8);
+                    return I_TISSUE_BASAL_SI + constrictionFactor * (I_TISSUE_MAX_SI - I_TISSUE_BASAL_SI);
+                } else if (tempDiff > 0.1) { // Vasodilation
+                    const dilationFactor = Math.min(1, (tempDiff - 0.1) / 0.8);
+                    return I_TISSUE_BASAL_SI - dilationFactor * (I_TISSUE_BASAL_SI - I_TISSUE_MIN_SI);
+                }
+                return I_TISSUE_BASAL_SI;
+            };
+
+            const dataPoints = [];
+            let currentCoreTemp = T_CORE_INITIAL;
+            let vasoActive = false, shiverActive = false, sweatActive = false, dilateActive = false;
+
+            let finalState = {};
+
+            for (let t = 0; t <= durationMins; t++) {
+                dataPoints.push({ time: t, temp: currentCoreTemp });
+
+                // Calculate physiological regulation state
+                const tissueInsulationSI = calculateTissueInsulation(currentCoreTemp, T_CORE_INITIAL);
+                vasoActive = tissueInsulationSI > 0.028; // Slightly higher than basal value
+                dilateActive = tissueInsulationSI < 0.026; // Slightly lower than basal value
+
+                shiverActive = false;
+                let shiveringMetIncrease = 0;
+                if (currentCoreTemp < SHIVERING_THRESHOLD) {
+                    const tempDiff = SHIVERING_THRESHOLD - currentCoreTemp;
+                    shiveringMetIncrease = Math.min(MAX_SHIVERING_MET_INCREASE, tempDiff * 4.0); // Enhanced response
+                    shiverActive = true;
+                }
+
+                sweatActive = false;
+                let sweatingHeatLoss = 0;
+                if (currentCoreTemp > SWEATING_THRESHOLD) {
+                    const tempDiff = currentCoreTemp - SWEATING_THRESHOLD;
+                    sweatingHeatLoss = Math.min(MAX_SWEATING_HEAT_LOSS_WATTS, tempDiff * 150); // Enhanced response
+                    sweatActive = true;
+                }
+
+                // Calculate heat gains and losses
+                const airClo = 1 / (1.2 + 0.5 * Math.sqrt(windKmh));
+                const clothingAndAirInsulationSI = (clothingClo + airClo) * CLO_TO_SI;
+
+                const currentMetValue = initialMetValue + shiveringMetIncrease;
+                const heatProductionWatts = bmrWatts * currentMetValue;
+
+                const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100);
+                const netMetabolicGain = heatProductionWatts - heatLossResp;
+
+                const solarHeatGainWatts = isSunny ? SOLAR_GAIN_WATTS_PER_M2 * BSA * SOLAR_PROJECTION_FACTOR : 0;
+
+                // Dry heat loss based on a two-node model
+                const heatLossDry = (currentCoreTemp - tempC) / (tissueInsulationSI + clothingAndAirInsulationSI) * BSA;
+
+                const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
+
+                // Update core body temperature
+                const tempChangePerMinute = (netHeatRateWatts / bodyHeatCapacity) * 60;
+                currentCoreTemp += tempChangePerMinute;
+
+                if (t === durationMins) {
+                    finalState = {
+                        heatProductionWatts,
+                        solarHeatGainWatts,
+                        heatLossResp,
+                        heatLossDry,
+                        sweatingHeatLoss,
+                        netHeatRateWatts,
+                        shiveringIntensity: (shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100,
+                        sweatingIntensity: (sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100,
+                    };
+                }
+            }
+
+            const finalTemp = currentCoreTemp;
+
+            updatePhysiologyStatus(vasoActive, dilateActive, shiverActive, sweatActive);
+            renderChart(dataPoints, coreTemp);
+            updateSimulationSummary(finalTemp, coreTemp);
+            updateDetailedStatus(finalState);
+        }
+
+        function updatePhysiologyStatus(vaso, dilate, shiver, sweat) {
+            const t = translations[currentLang];
+            const statuses = [];
+            if (vaso) statuses.push(t.vasoconstriction);
+            if (dilate) statuses.push(t.vasodilation);
+            if (shiver) statuses.push(t.shivering);
+            if (sweat) statuses.push(t.sweating);
+
+            if (statuses.length > 0) {
+                dom.physiologyStatusText.textContent = statuses.join(' | ');
+                dom.physiologyStatusText.className = 'text-lg font-semibold text-yellow-400';
+            } else {
+                dom.physiologyStatusText.textContent = t.status_stable;
+                dom.physiologyStatusText.className = 'text-lg font-semibold text-green-400';
+            }
+        }
+
+        function updateDetailedStatus(finalState) {
+            dom.detailMetabolic.textContent = `${finalState.heatProductionWatts.toFixed(1)} W`;
+            dom.detailSolar.textContent = `${finalState.solarHeatGainWatts.toFixed(1)} W`;
+            dom.detailRespiratory.textContent = `${finalState.heatLossResp.toFixed(1)} W`;
+            dom.detailDry.textContent = `${finalState.heatLossDry.toFixed(1)} W`;
+            dom.detailSweat.textContent = `${finalState.sweatingHeatLoss.toFixed(1)} W`;
+            dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} W`;
+            dom.detailShivering.textContent = `${finalState.shiveringIntensity.toFixed(0)} %`;
+            dom.detailSweating.textContent = `${finalState.sweatingIntensity.toFixed(0)} %`;
+        }
+
+
+        function renderChart(data, coreTemp) {
+            const svg = dom.chart;
+            svg.innerHTML = '';
+            if (data.length < 2) return;
+
+            const paddingX = 8, paddingY = 5;
+            const width = 100 - paddingX * 2, height = 60 - paddingY * 2;
+
+            const maxTime = Math.max(1, data[data.length - 1].time);
+            const tempValues = data.map(p => p.temp);
+            const minTemp = Math.min(...tempValues), maxTemp = Math.max(...tempValues);
+            const yRange = Math.max(Math.abs(coreTemp - minTemp), Math.abs(coreTemp - maxTemp), 0.5) * 2.2;
+            const yDomain = [coreTemp - yRange / 2, coreTemp + yRange / 2];
+
+            const scaleX = time => (time / maxTime) * width + paddingX;
+            const scaleY = temp => height - ((temp - yDomain[0]) / (yDomain[1] - yDomain[0])) * height + paddingY;
+
+            [{ t: 35, c: '#ef4444' }, { t: coreTemp, c: '#22c55e' }, { t: 38.5, c: '#f97316' }].forEach(ref => {
+                const y = scaleY(ref.t);
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                line.setAttribute('d', `M ${paddingX} ${y} H ${width + paddingX}`);
+                line.setAttribute('stroke', ref.c); line.setAttribute('stroke-width', '0.5'); line.setAttribute('stroke-dasharray', '2');
+                svg.appendChild(line);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', paddingX + 2); text.setAttribute('y', y - 1);
+                text.setAttribute('fill', ref.c); text.setAttribute('font-size', '4'); text.textContent = `${ref.t}°C`;
+                svg.appendChild(text);
+            });
+
+            let pathData = `M ${scaleX(data[0].time)} ${scaleY(data[0].temp)}`;
+            for (let i = 1; i < data.length; i++) { pathData += ` L ${scaleX(data[i].time)} ${scaleY(data[i].temp)}`; }
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            line.setAttribute('d', pathData); line.setAttribute('stroke', '#a78bfa');
+            line.setAttribute('stroke-width', '2'); line.setAttribute('fill', 'none');
+            line.classList.add('chart-line');
+            svg.appendChild(line);
+        }
+
+        function updateSimulationSummary(finalTemp, coreTemp) {
+            const t = translations[currentLang];
+            let summaryText, bgColor, textColor;
+            const finalTempStr = finalTemp.toFixed(2);
+            const tempDiff = finalTemp - coreTemp;
+
+            if (finalTemp < 35.0) {
+                summaryText = t.summary_hypothermia; bgColor = 'bg-red-800'; textColor = 'text-white';
+            } else if (tempDiff < -0.8) {
+                summaryText = t.summary_very_cold; bgColor = 'bg-red-600'; textColor = 'text-white';
+            } else if (tempDiff < -0.4) {
+                summaryText = t.summary_cold; bgColor = 'bg-blue-600'; textColor = 'text-white';
+            } else if (tempDiff < -0.1) {
+                summaryText = t.summary_cool; bgColor = 'bg-cyan-500'; textColor = 'text-white';
+            } else if (tempDiff <= 0.2) {
+                summaryText = t.summary_comfortable; bgColor = 'bg-green-600'; textColor = 'text-white';
+            } else if (tempDiff <= 0.5) {
+                summaryText = t.summary_warm; bgColor = 'bg-yellow-500'; textColor = 'text-black';
+            } else if (finalTemp <= 38.5) {
+                summaryText = t.summary_hot; bgColor = 'bg-orange-500'; textColor = 'text-white';
+            } else {
+                summaryText = t.summary_overheating; bgColor = 'bg-red-600'; textColor = 'text-white';
+            }
+
+            dom.simSummary.innerHTML = `<span>${finalTempStr}°C</span><span class="text-lg ml-3 font-medium">${summaryText}</span>`;
+            dom.simSummary.className = `text-4xl font-bold p-3 rounded-lg h-24 flex items-center justify-center text-center transition-all duration-500 ${bgColor} ${textColor}`;
+        }
+
+        function handleAddClothing() {
+            const key = dom.clothingItem.value;
+            if (!key) return;
+            const item = JSON.parse(JSON.stringify(clothingData[key]));
+            currentOutfit.push(item);
+            updateOutfitUI();
+        }
+
+        function handleRemoveClothing(event) {
+            currentOutfit.splice(parseInt(event.target.dataset.index, 10), 1);
+            updateOutfitUI();
+        }
+
+        function triggerSimulation() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(runSimulation, 250);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setLanguage(navigator.language || navigator.userLanguage);
+
+            dom.addBtn.addEventListener('click', handleAddClothing);
+            Object.values(dom).forEach(element => {
+                if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
+                    element.addEventListener('input', triggerSimulation);
+                }
+            });
+            // Initial Run is triggered by setLanguage
+        });
+    </script>
+</body>
+
+</html>
