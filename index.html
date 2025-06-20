@@ -589,6 +589,7 @@
             const clothingClo = calculateTotalClothingClo();
             const initialMetValue = parseFloat(dom.activity.value);
             const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), isSunny = dom.sunshine.checked, durationMins = parseInt(dom.duration.value);
+            const windMs = windKmh / 3.6;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
 
@@ -610,11 +611,11 @@
 
             // Physiological response thresholds and parameters (cold)
             const SHIVERING_THRESHOLD = coreTemp - 0.3;
-            const MAX_SHIVERING_MET_INCREASE = 2.5; // A multiplier on BMR
+            const MAX_SHIVERING_MET_INCREASE = 4.0; // maximum shivering metabolic increase (Met)
 
             // Physiological response thresholds and parameters (hot)
             const SWEATING_THRESHOLD = coreTemp + 0.3;
-            const MAX_SWEATING_HEAT_LOSS_WATTS = 150;
+            const MAX_SWEATING_HEAT_LOSS_WATTS = 400; // maximum sweating heat loss capacity (W)
 
             // Solar radiation parameters
             const SOLAR_GAIN_WATTS_PER_M2 = 100; // Solar radiation energy absorbed per m^2 of body surface (W/m^2) on a sunny day
@@ -625,8 +626,8 @@
                 const p_sat_air_kpa = 0.61121 * Math.exp((18.678 - airTempC / 234.5) * (airTempC / (257.14 + airTempC)));
                 const p_vapor_air_kpa = rh * p_sat_air_kpa;
                 const loss_sensible = 0.0014 * metabolicWatts * (34 - airTempC);
-                const loss_latent = 0.0173 * metabolicWatts * (5.32 - p_vapor_air_kpa); // 5.32 kPa is saturated water vapor pressure at 34°C
-                return Math.max(0, loss_sensible + loss_latent);
+                const loss_latent = 0.0173 * metabolicWatts * Math.max(0, 6.266 - p_vapor_air_kpa);
+                return loss_sensible + loss_latent;
             };
 
             const calculateTissueInsulation = (currentCoreTemp, setPointTemp) => {
@@ -673,11 +674,11 @@
                 }
 
                 // Calculate heat gains and losses
-                const airClo = 1 / (1.2 + 0.5 * Math.sqrt(windKmh));
+                const airClo = 1 / (1.2 + 0.5 * Math.sqrt(windMs));
                 const clothingAndAirInsulationSI = (clothingClo + airClo) * CLO_TO_SI;
 
                 const currentMetValue = initialMetValue + shiveringMetIncrease;
-                const heatProductionWatts = bmrWatts * currentMetValue;
+                const heatProductionWatts = 58.2 * BSA * currentMetValue;
 
                 const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100);
                 const netMetabolicGain = heatProductionWatts - heatLossResp;
