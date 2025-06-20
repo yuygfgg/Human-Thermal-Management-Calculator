@@ -4,6 +4,8 @@
 
 A fun web-based tool to simulate human core body temperature changes based on environment, activity, and clothing choices.
 
+For more serious calculation, <https://github.com/CenterForTheBuiltEnvironment/comfort_tool> should be used.
+
 ### How to Use
 
 1.  Open <https://calc.yuygfgg.xyz/> in your browser.
