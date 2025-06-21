@@ -578,7 +578,7 @@
         function populateActivitySelect() {
             dom.activity.innerHTML = '';
             activityLevels
-                .slice() // 复制一份再排序，避免影响原数组顺序
+                .slice()
                 .sort((a, b) => a.met - b.met)
                 .forEach(item => {
                     const option = document.createElement('option');
