@@ -563,18 +563,34 @@
         }
 
         function calculateTotalClothingClo() {
-            const LAYERING_EFFICIENCY = 0.85;
+            // Layering efficiency
+            const LAYERING_EFFICIENCY = 0.70; // Typically 0.65–0.80
+            const BASE_AIR_LAYER_CLO = 0.08;  // Still-air boundary layer next to skin (ASHRAE default)
+
             const regionalClo = {};
+            // Build up effective clo for each body region (no surface-area weighting here)
             for (const regionKey in bodyRegions) {
-                const layersForRegion = currentOutfit.filter(item => item.coverage.hasOwnProperty(regionKey)).map(item => item.coverage[regionKey]).sort((a, b) => b - a);
+                const layersForRegion = currentOutfit
+                    .filter(item => item.coverage.hasOwnProperty(regionKey))
+                    .map(item => item.coverage[regionKey])
+                    .sort((a, b) => b - a); // order layers thick → thin
+
                 let effectiveClo = 0, efficiency = 1.0;
-                for (const layerClo of layersForRegion) { effectiveClo += layerClo * efficiency; efficiency *= LAYERING_EFFICIENCY; }
+                for (const layerClo of layersForRegion) {
+                    effectiveClo += layerClo * efficiency;
+                    efficiency *= LAYERING_EFFICIENCY;
+                }
                 regionalClo[regionKey] = effectiveClo;
             }
-            let finalWeightedClo = 0;
-            for (const regionKey in bodyRegions) { finalWeightedClo += regionalClo[regionKey] * bodyRegions[regionKey]; }
-            dom.totalClo.textContent = `${finalWeightedClo.toFixed(2)} Clo`;
-            return finalWeightedClo;
+
+            // Straight linear sum (surface-area weighting removed)
+            let totalClo = BASE_AIR_LAYER_CLO; // add the air layer first
+            for (const regionKey in regionalClo) {
+                totalClo += regionalClo[regionKey];
+            }
+
+            dom.totalClo.textContent = `${totalClo.toFixed(2)} Clo`;
+            return totalClo;
         }
 
         function runSimulation() {
@@ -674,9 +690,7 @@
                 }
 
                 // Calculate heat gains and losses
-                const airClo = 1 / (1.2 + 0.5 * Math.sqrt(windMs));
-                const clothingAndAirInsulationSI = (clothingClo + airClo) * CLO_TO_SI;
-
+                const clothingInsulationSI = clothingClo * CLO_TO_SI;
                 const currentMetValue = initialMetValue + shiveringMetIncrease;
                 const heatProductionWatts = 58.2 * BSA * currentMetValue;
 
@@ -686,7 +700,7 @@
                 const solarHeatGainWatts = isSunny ? SOLAR_GAIN_WATTS_PER_M2 * BSA * SOLAR_PROJECTION_FACTOR : 0;
 
                 // Dry heat loss based on a two-node model
-                const heatLossDry = (currentCoreTemp - tempC) / (tissueInsulationSI + clothingAndAirInsulationSI) * BSA;
+                const heatLossDry = (currentCoreTemp - tempC) / (tissueInsulationSI + clothingInsulationSI) * BSA;
 
                 const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
 
