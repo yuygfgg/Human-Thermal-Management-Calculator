@@ -156,14 +156,16 @@
                             <input type="number" id="humidity" value="50" step="1" min="0" max="100"
                                 class="input-field">
                         </div>
-                        <div class="flex items-center mt-6">
-                            <div class="relative flex items-start">
-                                <div class="flex items-center h-5"><input id="sunshine" type="checkbox"
-                                        class="h-4 w-4 text-violet-600 bg-gray-700 border-gray-600 rounded focus:ring-violet-500">
-                                </div>
-                                <div class="ml-3 text-sm"><label for="sunshine" class="font-medium text-gray-300"
-                                        data-t="sunshine"></label></div>
-                            </div>
+                        <div>
+                            <label for="solar-level" class="block text-sm font-medium text-gray-300"
+                                data-t="solar_radiation"></label>
+                            <select id="solar-level" class="input-field">
+                                <option value="0" data-t="solar_level_no"></option>
+                                <option value="200" data-t="solar_level_overcast"></option>
+                                <option value="400" data-t="solar_level_cloudy"></option>
+                                <option value="600" data-t="solar_level_sunny"></option>
+                                <option value="800" data-t="solar_level_intense"></option>
+                            </select>
                         </div>
                         <div>
                             <label for="activity" class="block text-sm font-medium text-gray-300"
@@ -300,6 +302,12 @@
                 temperature: "Air Temperature (°C)",
                 wind_speed: "Wind Speed (km/h)",
                 humidity: "Relative Humidity (%)",
+                solar_radiation: "Solar Level",
+                solar_level_no: "Shade / No Sun (0 W/m²)",
+                solar_level_overcast: "Overcast (~200 W/m²)",
+                solar_level_cloudy: "Cloudy (~400 W/m²)",
+                solar_level_sunny: "Sunny (~600 W/m²)",
+                solar_level_intense: "Intense Sun (~800 W/m²)",
                 sunshine: "Sunny",
                 activity_level: "Activity Level",
                 activity_sit: "Sitting",
@@ -369,6 +377,12 @@
                 temperature: "气温 (°C)",
                 wind_speed: "风速 (km/h)",
                 humidity: "相对湿度 (%)",
+                solar_radiation: "太阳辐射水平",
+                solar_level_no: "阴影/无阳光 (0 W/m²)",
+                solar_level_overcast: "阴天 (~200 W/m²)",
+                solar_level_cloudy: "多云 (~400 W/m²)",
+                solar_level_sunny: "晴朗 (~600 W/m²)",
+                solar_level_intense: "强烈阳光 (~800 W/m²)",
                 sunshine: "阳光明媚",
                 activity_level: "活动水平",
                 activity_sit: "静坐",
@@ -534,7 +548,7 @@
         let currentLang = 'zh';
 
         const dom = {
-            gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), sunshine: document.getElementById('sunshine'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
+            gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
             physiologyStatusText: document.getElementById('physiology-status-text'),
             coreTemp: document.getElementById('core-temp'),
             detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
@@ -668,7 +682,7 @@
 
             const clothingClo = calculateTotalClothingClo();
             const initialMetValue = parseFloat(dom.activity.value);
-            const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), isSunny = dom.sunshine.checked, durationMins = parseInt(dom.duration.value);
+            const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), solarRad = parseFloat(dom.solarLevel.value), durationMins = parseInt(dom.duration.value);
             const windMs = windKmh / 3.6;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
@@ -698,8 +712,10 @@
             const MAX_SWEATING_HEAT_LOSS_WATTS = 400; // maximum sweating heat loss capacity (W)
 
             // Solar radiation parameters
-            const SOLAR_GAIN_WATTS_PER_M2 = 100; // Solar radiation energy absorbed per m^2 of body surface (W/m^2) on a sunny day
-            const SOLAR_PROJECTION_FACTOR = 0.5; // Effective body area exposed to the sun
+            const SOLAR_BODY_EXPOSED_FRAC = 0.25;  // Projected area = 25% of total body surface area
+            const SKIN_ABSORPTIVITY = 0.7; // Average absorptivity of skin/clothing
+            // Effective coefficient = Exposed fraction × Absorptivity
+            const SOLAR_EFFECTIVE_FACTOR = SOLAR_BODY_EXPOSED_FRAC * SKIN_ABSORPTIVITY; // 0.175
 
             const calculateConvectiveCoefficient = (v) => {
                 if (!v || v < 0.1) return 3.1; // Use natural convection approximation 3.1 W/(m²·K) when wind speed is very low
@@ -769,7 +785,7 @@
                 const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100);
                 const netMetabolicGain = heatProductionWatts - heatLossResp;
 
-                const solarHeatGainWatts = isSunny ? SOLAR_GAIN_WATTS_PER_M2 * BSA * SOLAR_PROJECTION_FACTOR : 0;
+                const solarHeatGainWatts = solarRad * BSA * SOLAR_EFFECTIVE_FACTOR;
 
                 // Dry heat loss based on a two-node model
                 const totalInsulation = tissueInsulationSI + clothingInsulationSI + (1 / h_e);
@@ -923,6 +939,7 @@
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
                     element.addEventListener('input', triggerSimulation);
+                    element.addEventListener('change', triggerSimulation);
                 }
             });
             // Initial Run is triggered by setLanguage
