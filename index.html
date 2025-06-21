@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style type="text/tailwindcss">
-        /* v0.1 "Bio-Sim" Theme */
         body {
             font-family: 'Noto Sans SC', sans-serif;
             background-color: #0d1117;
@@ -227,6 +226,10 @@
                                 <p id="total-clo" class="text-2xl font-semibold text-violet-300">0.00 Clo</p>
                             </div>
                             <div>
+                                <p class="text-sm text-gray-400" data-t="effective_clo"></p>
+                                <p id="effective-clo" class="text-2xl font-semibold text-sky-300">0.00 Clo</p>
+                            </div>
+                            <div>
                                 <p class="text-sm text-gray-400" data-t="physiological_status"></p>
                                 <div id="physiology-status-container" class="flex justify-center items-center h-10">
                                     <p id="physiology-status-text" class="text-lg font-semibold text-green-400"
@@ -315,7 +318,8 @@
                 empty_outfit: "Empty...",
                 dashboard_title: "Real-time Physiological Simulation Dashboard",
                 core_temp_prediction: "Predicted Core Temperature Change",
-                total_clo: "Total Clothing Insulation",
+                total_clo: "Total Clothing Insulation (Sum)",
+                effective_clo: "Effective Clothing Insulation",
                 physiological_status: "Physiological Response",
                 status_stable: "Physiologically Stable",
                 detailed_status_title: "Detailed Final Status",
@@ -383,7 +387,8 @@
                 empty_outfit: "空空如也...",
                 dashboard_title: "实时生理仿真仪表盘",
                 core_temp_prediction: "预测核心体温变化",
-                total_clo: "衣物总隔热值",
+                total_clo: "衣物总隔热值（累加）",
+                effective_clo: "加权有效隔热值",
                 physiological_status: "生理反应状态",
                 status_stable: "生理状态稳定",
                 detailed_status_title: "详细最终状态",
@@ -533,6 +538,7 @@
             physiologyStatusText: document.getElementById('physiology-status-text'),
             coreTemp: document.getElementById('core-temp'),
             detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
+            effectiveClo: document.getElementById('effective-clo'),
         };
 
         function setLanguage(lang) {
@@ -616,7 +622,7 @@
             const BASE_AIR_LAYER_CLO = 0.08;  // Still-air boundary layer next to skin (ASHRAE default)
 
             const regionalClo = {};
-            // Build up effective clo for each body region (no surface-area weighting here)
+            // Build up effective clo for each body region (surface-area specific)
             for (const regionKey in bodyRegions) {
                 const layersForRegion = currentOutfit
                     .filter(item => item.coverage.hasOwnProperty(regionKey))
@@ -631,14 +637,24 @@
                 regionalClo[regionKey] = effectiveClo;
             }
 
-            // Straight linear sum (surface-area weighting removed)
-            let totalClo = BASE_AIR_LAYER_CLO; // add the air layer first
+            // Surface-area weighted sum to obtain whole-body clothing insulation (Clo)
+            let weightedClo = BASE_AIR_LAYER_CLO; // add the still-air boundary layer first
             for (const regionKey in regionalClo) {
-                totalClo += regionalClo[regionKey];
+                const areaFraction = bodyRegions[regionKey] || 0; // safety fallback
+                weightedClo += regionalClo[regionKey] * areaFraction;
+            }
+            // Calculate the unweighted simple sum Clo (for display)
+            let simpleSumClo = BASE_AIR_LAYER_CLO;
+            for (const regionKey in regionalClo) {
+                simpleSumClo += regionalClo[regionKey];
             }
 
-            dom.totalClo.textContent = `${totalClo.toFixed(2)} Clo`;
-            return totalClo;
+            // Display both types of Clo in the UI
+            dom.totalClo.textContent = `${simpleSumClo.toFixed(2)} Clo`;
+            if (dom.effectiveClo) {
+                dom.effectiveClo.textContent = `${weightedClo.toFixed(2)} Clo`;
+            }
+            return weightedClo;
         }
 
         function runSimulation() {
@@ -683,7 +699,15 @@
 
             // Solar radiation parameters
             const SOLAR_GAIN_WATTS_PER_M2 = 100; // Solar radiation energy absorbed per m^2 of body surface (W/m^2) on a sunny day
-            const SOLAR_PROJECTION_FACTOR = 0.5;  // Effective body area exposed to the sun
+            const SOLAR_PROJECTION_FACTOR = 0.5; // Effective body area exposed to the sun
+
+            const calculateConvectiveCoefficient = (v) => {
+                if (!v || v < 0.1) return 3.1; // Use natural convection approximation 3.1 W/(m²·K) when wind speed is very low
+                return 8.3 * Math.pow(v, 0.6); // ISO 7933: h_c = 8.3 * v^0.6
+            };
+            const h_c = calculateConvectiveCoefficient(windMs);
+            const h_r = 4.7; // Typical radiative heat transfer coefficient (W/(m²·K))
+            const h_e = h_c + h_r; // Overall external heat transfer coefficient
 
             // New two-node model helper functions
             const calculateRespiratoryLoss = (metabolicWatts, airTempC, rh) => {
@@ -748,7 +772,8 @@
                 const solarHeatGainWatts = isSunny ? SOLAR_GAIN_WATTS_PER_M2 * BSA * SOLAR_PROJECTION_FACTOR : 0;
 
                 // Dry heat loss based on a two-node model
-                const heatLossDry = (currentCoreTemp - tempC) / (tissueInsulationSI + clothingInsulationSI) * BSA;
+                const totalInsulation = tissueInsulationSI + clothingInsulationSI + (1 / h_e);
+                const heatLossDry = (currentCoreTemp - tempC) / totalInsulation * BSA;
 
                 const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
 
