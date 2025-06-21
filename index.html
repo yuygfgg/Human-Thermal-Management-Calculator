@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Human Thermal Management Calculator v0.1</title>
+    <title>Human Thermal Management Calculator v0.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -239,6 +239,10 @@
                                     </p>
                                 </div>
                             </div>
+                            <div>
+                                <p class="text-sm text-gray-400" data-t="comfort_score"></p>
+                                <p id="comfort-score" class="text-2xl font-semibold text-gray-500">-- / 100</p>
+                            </div>
                         </div>
 
                         <div id="chart-container"
@@ -250,6 +254,8 @@
                             <h3 class="text-lg font-bold mb-3 text-white border-b-2 border-gray-700 pb-1"
                                 data-t="detailed_status_title"></h3>
                             <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                <div></div>
+                                <div class="text-right text-xs text-gray-400 -mb-1" data-t="final_avg_header"></div>
                                 <!-- Heat Gain -->
                                 <div class="text-green-400 font-semibold" data-t="heat_gain"></div>
                                 <div></div>
@@ -267,7 +273,7 @@
                                 <div class="pl-4" data-t="sweat_loss"></div>
                                 <div id="detail-sweat" class="text-right font-mono">0 W</div>
                                 <!-- Net -->
-                                <div class="text-yellow-400 font-semibold mt-2" data-t="net_rate"></div>
+                                <div class="text-yellow-400 font-semibold mt-2" data-t="final_net_rate"></div>
                                 <div id="detail-net" class="text-right font-mono font-bold">0 W</div>
                                 <!-- Response -->
                                 <div class="text-blue-400 font-semibold mt-2" data-t="physiological_response"></div>
@@ -277,6 +283,10 @@
                                 <div class="pl-4" data-t="sweating_intensity"></div>
                                 <div id="detail-sweating" class="text-right font-mono">0 %</div>
                             </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <button id="copy-json-btn" class="btn-secondary w-full" data-t="copy_json_btn"></button>
                         </div>
                     </div>
                 </div>
@@ -288,9 +298,9 @@
         const bodyRegions = { head: 0.07, torso: 0.35, arms: 0.14, hands: 0.05, legs: 0.32, feet: 0.07 };
         const translations = {
             en: {
-                page_title: "Human Thermal Management Calculator v0.1",
+                page_title: "Human Thermal Management Calculator v0.2",
                 main_title: "Human Thermal Management Calculator",
-                version_badge: "v0.1 Bio-Compensatory",
+                version_badge: "v0.2",
                 param_input: "Parameter Input",
                 gender: "Physiological Gender",
                 male: "Male",
@@ -338,7 +348,7 @@
                 respiratory_loss: "Respiratory Heat Loss",
                 dry_loss: "Dry Skin Heat Loss",
                 sweat_loss: "Sweat Evaporation",
-                net_rate: "Net Change Rate",
+                final_net_rate: "Net Change Rate",
                 physiological_response: "Physiological Response",
                 shivering_intensity: "Shivering Intensity",
                 sweating_intensity: "Sweating Intensity",
@@ -361,11 +371,19 @@
                 cat_bottoms: "Bottoms",
                 cat_full: "Full Body",
                 cat_acc: "Accessories",
+                final_skin_temp: "Final Skin Temp",
+                copy_json_btn: "Copy Results (JSON)",
+                final_avg_header: "Final / Average (W)",
+                comfort_score: "Overall Comfort",
+                comfort_ideal: "Ideal Comfort",
+                comfort_acceptable: "Acceptable",
+                comfort_uncomfortable: "Uncomfortable",
+                comfort_distress: "Distress",
             },
             zh: {
-                page_title: "人体热量管理计算器 v0.1",
+                page_title: "人体热量管理计算器 v0.2",
                 main_title: "人体热量管理计算器",
-                version_badge: "v0.1",
+                version_badge: "v0.2",
                 param_input: "参数输入",
                 gender: "生理性别",
                 male: "男性",
@@ -413,7 +431,7 @@
                 respiratory_loss: "呼吸散热",
                 dry_loss: "皮肤干性散热",
                 sweat_loss: "出汗蒸发",
-                net_rate: "净变化率",
+                final_net_rate: "净变化率",
                 physiological_response: "生理反应",
                 shivering_intensity: "战栗强度",
                 sweating_intensity: "出汗强度",
@@ -436,6 +454,14 @@
                 cat_bottoms: "下装",
                 cat_full: "全身",
                 cat_acc: "配饰",
+                final_skin_temp: "最终皮肤温度",
+                copy_json_btn: "复制结果 (JSON)",
+                final_avg_header: "瞬时值 / 平均值 (W)",
+                comfort_score: "整体舒适度",
+                comfort_ideal: "理想舒适",
+                comfort_acceptable: "基本舒适",
+                comfort_uncomfortable: "感到不适",
+                comfort_distress: "非常不适",
             }
         };
 
@@ -454,7 +480,9 @@
             "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", coverage: { torso: 0.32, arms: 0.18 }, category: "cat_mid" },
             "mid_thin_sweater": { name: "薄款毛衣", name_en: "Thin Sweater", coverage: { torso: 0.28, arms: 0.18 }, category: "cat_mid" },
             "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
-            "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", coverage: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
+            "mid_thin_hoodie": { name: "薄款连帽卫衣", name_en: "Lightweight Hoodie", coverage: { head: 0.08, torso: 0.25, arms: 0.18 }, category: "cat_mid" },
+            "mid_hoodie": { name: "标准连帽卫衣", name_en: "Standard Hoodie", coverage: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
+            "mid_fleece_hoodie": { name: "加绒连帽卫衣", name_en: "Fleece-lined Hoodie", coverage: { head: 0.12, torso: 0.45, arms: 0.32 }, category: "cat_mid" },
             "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
             "mid_thick_sweater": { name: "厚款毛衣", name_en: "Thick Sweater", coverage: { torso: 0.45, arms: 0.30 }, category: "cat_mid" },
             "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", coverage: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
@@ -493,8 +521,12 @@
             "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", coverage: { torso: 0.35, arms: 0.22, legs: 0.28 }, category: "cat_full" },
             // Accessories
             "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", coverage: { legs: 0.01, feet: 0.00 }, category: "cat_acc" },
-            "acc_tights": { name: "连裤袜", name_en: "Tights", coverage: { legs: 0.05, feet: 0.01 }, category: "cat_acc" },
-            "acc_thin_socks": { name: "薄袜子", name_en: "Thin Socks", coverage: { feet: 0.04 }, category: "cat_acc" },
+            "acc_tights_20d": { name: "丝袜 (20D)", name_en: "Sheer Tights (20D)", coverage: { legs: 0.02, feet: 0.01 }, category: "cat_acc" },
+            "acc_tights_80d": { name: "连裤袜 (80D)", name_en: "Opaque Tights (80D)", coverage: { legs: 0.08, feet: 0.01 }, category: "cat_acc" },
+            "acc_tights_200d": { name: "厚连裤袜 (200D)", name_en: "Thick Tights (200D)", coverage: { legs: 0.15, feet: 0.02 }, category: "cat_acc" },
+            "acc_ankle_socks": { name: "船袜", name_en: "Ankle Socks", coverage: { feet: 0.03 }, category: "cat_acc" },
+            "acc_crew_socks": { name: "中筒袜", name_en: "Crew Socks", coverage: { feet: 0.04 }, category: "cat_acc" },
+            "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", coverage: { feet: 0.05, legs: 0.10 }, category: "cat_acc" },
             "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", coverage: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
             "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", coverage: { feet: 0.10 }, category: "cat_acc" },
             "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", coverage: { feet: 0.05 }, category: "cat_acc" },
@@ -546,6 +578,8 @@
         let currentOutfit = [];
         let debounceTimer;
         let currentLang = 'zh';
+        let lastSimulationResults = {};
+        let lastComfortText = '';
 
         const dom = {
             gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
@@ -553,6 +587,8 @@
             coreTemp: document.getElementById('core-temp'),
             detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
             effectiveClo: document.getElementById('effective-clo'),
+            copyJsonBtn: document.getElementById('copy-json-btn'),
+            comfortScore: document.getElementById('comfort-score'),
         };
 
         function setLanguage(lang) {
@@ -619,9 +655,9 @@
                 dom.outfitList.appendChild(p);
             } else {
                 currentOutfit.forEach((item, index) => {
+                    const name = currentLang === 'en' ? item.name_en : item.name;
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md animate-fade-in';
-                    const name = currentLang === 'en' ? item.name_en : item.name;
                     itemDiv.innerHTML = `<span>${name}</span><button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>`;
                     dom.outfitList.appendChild(itemDiv);
                 });
@@ -630,19 +666,14 @@
             triggerSimulation();
         }
 
-        function calculateTotalClothingClo() {
-            // Layering efficiency
-            const LAYERING_EFFICIENCY = 0.70; // Typically 0.65–0.80
-            const BASE_AIR_LAYER_CLO = 0.08;  // Still-air boundary layer next to skin (ASHRAE default)
-
+        function calculateRegionalClo() {
+            const LAYERING_EFFICIENCY = 0.70;
             const regionalClo = {};
-            // Build up effective clo for each body region (surface-area specific)
             for (const regionKey in bodyRegions) {
                 const layersForRegion = currentOutfit
                     .filter(item => item.coverage.hasOwnProperty(regionKey))
                     .map(item => item.coverage[regionKey])
-                    .sort((a, b) => b - a); // order layers thick → thin
-
+                    .sort((a, b) => b - a);
                 let effectiveClo = 0, efficiency = 1.0;
                 for (const layerClo of layersForRegion) {
                     effectiveClo += layerClo * efficiency;
@@ -650,20 +681,18 @@
                 }
                 regionalClo[regionKey] = effectiveClo;
             }
+            return regionalClo;
+        }
 
-            // Surface-area weighted sum to obtain whole-body clothing insulation (Clo)
-            let weightedClo = BASE_AIR_LAYER_CLO; // add the still-air boundary layer first
+        function calculateTotalClothingClo() {
+            const regionalClo = calculateRegionalClo();
+            let weightedClo = 0;
+            let simpleSumClo = 0;
             for (const regionKey in regionalClo) {
-                const areaFraction = bodyRegions[regionKey] || 0; // safety fallback
+                const areaFraction = bodyRegions[regionKey] || 0;
                 weightedClo += regionalClo[regionKey] * areaFraction;
-            }
-            // Calculate the unweighted simple sum Clo (for display)
-            let simpleSumClo = BASE_AIR_LAYER_CLO;
-            for (const regionKey in regionalClo) {
                 simpleSumClo += regionalClo[regionKey];
             }
-
-            // Display both types of Clo in the UI
             dom.totalClo.textContent = `${simpleSumClo.toFixed(2)} Clo`;
             if (dom.effectiveClo) {
                 dom.effectiveClo.textContent = `${weightedClo.toFixed(2)} Clo`;
@@ -694,6 +723,8 @@
             const T_CORE_INITIAL = coreTemp;
             const CLO_TO_SI = 0.155;
 
+            const regionalClo = calculateRegionalClo(); // Get per-region insulation values
+
             // BMR calculation using Mifflin-St Jeor equation (kcal/day)
             let bmrKcal;
             if (gender === 'female') {
@@ -714,8 +745,8 @@
             // Solar radiation parameters
             const SOLAR_BODY_EXPOSED_FRAC = 0.25;  // Projected area = 25% of total body surface area
             const SKIN_ABSORPTIVITY = 0.7; // Average absorptivity of skin/clothing
-            // Effective coefficient = Exposed fraction × Absorptivity
-            const SOLAR_EFFECTIVE_FACTOR = SOLAR_BODY_EXPOSED_FRAC * SKIN_ABSORPTIVITY; // 0.175
+            // Effective coefficient used in simulation: 0.12
+            const SOLAR_EFFECTIVE_FACTOR = 0.12;
 
             const calculateConvectiveCoefficient = (v) => {
                 if (!v || v < 0.1) return 3.1; // Use natural convection approximation 3.1 W/(m²·K) when wind speed is very low
@@ -734,6 +765,22 @@
                 return loss_sensible + loss_latent;
             };
 
+            const calculateDryHeatLoss = (coreT, airT, tissueIns, regionalCloValues, he) => {
+                let totalDryLoss = 0;
+                for (const region in bodyRegions) {
+                    const regionalCloSI = (regionalCloValues[region] || 0) * CLO_TO_SI;
+                    const I_ext_regional = regionalCloSI + (1 / he);
+                    const totalInsulation_regional = tissueIns + I_ext_regional;
+                    const regionArea = BSA * bodyRegions[region];
+
+                    if (totalInsulation_regional > 0) {
+                        const loss_regional = (coreT - airT) / totalInsulation_regional * regionArea;
+                        totalDryLoss += loss_regional;
+                    }
+                }
+                return totalDryLoss;
+            };
+
             const calculateTissueInsulation = (currentCoreTemp, setPointTemp) => {
                 const I_TISSUE_BASAL_SI = 0.027, I_TISSUE_MAX_SI = 0.054, I_TISSUE_MIN_SI = 0.009;
                 const tempDiff = currentCoreTemp - setPointTemp;
@@ -750,8 +797,16 @@
             const dataPoints = [];
             let currentCoreTemp = T_CORE_INITIAL;
             let vasoActive = false, shiverActive = false, sweatActive = false, dilateActive = false;
-
             let finalState = {};
+            let finalSkinTemp = 0;
+            const history = {
+                heatProduction: [],
+                solarGain: [],
+                respiratoryLoss: [],
+                dryLoss: [],
+                sweatLoss: [],
+                netRate: [],
+            };
 
             for (let t = 0; t <= durationMins; t++) {
                 dataPoints.push({ time: t, temp: currentCoreTemp });
@@ -761,8 +816,10 @@
                 vasoActive = tissueInsulationSI > 0.028; // Slightly higher than basal value
                 dilateActive = tissueInsulationSI < 0.026; // Slightly lower than basal value
 
-                shiverActive = false;
                 let shiveringMetIncrease = 0;
+                let sweatingHeatLoss = 0;
+
+                shiverActive = false;
                 if (currentCoreTemp < SHIVERING_THRESHOLD) {
                     const tempDiff = SHIVERING_THRESHOLD - currentCoreTemp;
                     shiveringMetIncrease = Math.min(MAX_SHIVERING_MET_INCREASE, tempDiff * 4.0); // Enhanced response
@@ -770,7 +827,6 @@
                 }
 
                 sweatActive = false;
-                let sweatingHeatLoss = 0;
                 if (currentCoreTemp > SWEATING_THRESHOLD) {
                     const tempDiff = currentCoreTemp - SWEATING_THRESHOLD;
                     sweatingHeatLoss = Math.min(MAX_SWEATING_HEAT_LOSS_WATTS, tempDiff * 150); // Enhanced response
@@ -787,17 +843,37 @@
 
                 const solarHeatGainWatts = solarRad * BSA * SOLAR_EFFECTIVE_FACTOR;
 
-                // Dry heat loss based on a two-node model
-                const totalInsulation = tissueInsulationSI + clothingInsulationSI + (1 / h_e);
-                const heatLossDry = (currentCoreTemp - tempC) / totalInsulation * BSA;
+                const heatLossDry = calculateDryHeatLoss(currentCoreTemp, tempC, tissueInsulationSI, regionalClo, h_e);
 
                 const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
+
+                history.heatProduction.push(heatProductionWatts);
+                history.solarGain.push(solarHeatGainWatts);
+                history.respiratoryLoss.push(heatLossResp);
+                history.dryLoss.push(heatLossDry);
+                history.sweatLoss.push(sweatingHeatLoss);
+                history.netRate.push(netHeatRateWatts);
 
                 // Update core body temperature
                 const tempChangePerMinute = (netHeatRateWatts / bodyHeatCapacity) * 60;
                 currentCoreTemp += tempChangePerMinute;
 
                 if (t === durationMins) {
+                    // Calculate final average skin temperature
+                    let weightedSkinTempSum = 0;
+                    for (const region in bodyRegions) {
+                        const regionalCloSI = (regionalClo[region] || 0) * CLO_TO_SI;
+                        const I_ext_regional = regionalCloSI + (1 / h_e);
+                        const totalInsulation_regional = tissueInsulationSI + I_ext_regional;
+                        if (totalInsulation_regional > 0) {
+                            const regionalSkinTemp = (currentCoreTemp * I_ext_regional + tempC * tissueInsulationSI) / totalInsulation_regional;
+                            weightedSkinTempSum += regionalSkinTemp * bodyRegions[region];
+                        } else {
+                            weightedSkinTempSum += tempC * bodyRegions[region];
+                        }
+                    }
+                    finalSkinTemp = weightedSkinTempSum;
+
                     finalState = {
                         heatProductionWatts,
                         solarHeatGainWatts,
@@ -813,10 +889,66 @@
 
             const finalTemp = currentCoreTemp;
 
+            const calculateAverage = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+            lastSimulationResults = {
+                heatProductionWatts: calculateAverage(history.heatProduction),
+                solarHeatGainWatts: calculateAverage(history.solarGain),
+                heatLossResp: calculateAverage(history.respiratoryLoss),
+                heatLossDry: calculateAverage(history.dryLoss),
+                sweatingHeatLoss: calculateAverage(history.sweatLoss),
+                netRate: calculateAverage(history.netRate),
+                vasoActive: vasoActive,
+                dilateActive: dilateActive,
+                shiverActive: shiverActive,
+                sweatActive: sweatActive,
+            };
+
+            const comfortScore = calculateComfortScore(finalTemp, coreTemp, finalSkinTemp, finalState, lastSimulationResults, lastSimulationResults);
+
             updatePhysiologyStatus(vasoActive, dilateActive, shiverActive, sweatActive);
             renderChart(dataPoints, coreTemp);
-            updateSimulationSummary(finalTemp, coreTemp);
-            updateDetailedStatus(finalState);
+            updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore);
+            updateDetailedStatus(finalState, lastSimulationResults);
+        }
+
+        function calculateComfortScore(finalCoreTemp, baseCoreTemp, finalSkinTemp, finalState, averages, physiologicalState) {
+            const tempDiff = finalCoreTemp - baseCoreTemp;
+            const IDEAL_SKIN_TEMP = 33.5;
+            const skinTempDiffFromIdeal = finalSkinTemp - IDEAL_SKIN_TEMP; // Deviation of final skin temperature from ideal.
+
+            // Core temperature stability is paramount. Large deviations lead to significant discomfort.
+            const p_core = Math.abs(tempDiff) * 40;
+
+            // Skin temperature directly influences local and overall comfort perception.
+            let p_skin = 0;
+            if (skinTempDiffFromIdeal < 0) {
+                // If skin temperature is below ideal (feeling cold)
+                // Increased penalty for cold skin, as cold discomfort can be more acute and less tolerated.
+                p_skin = Math.abs(skinTempDiffFromIdeal) * 12;
+            } else {
+                // If skin temperature is above ideal (feeling warm/hot)
+                // Slightly lower penalty for warm skin compared to cold.
+                p_skin = Math.abs(skinTempDiffFromIdeal) * 10;
+            }
+
+            // Shivering and Sweating Intensity Penalty
+            const p_response_shiver_sweat = (finalState.shiveringIntensity + finalState.sweatingIntensity) * 0.4;
+
+            // Vasoregulation (Vasoconstriction/Vasodilation) Penalty
+            let p_vasoregulation = 0;
+            if (physiologicalState.vasoActive) {
+                p_vasoregulation = Math.min(25, (baseCoreTemp - finalCoreTemp) * 50);
+            } else if (physiologicalState.dilateActive) {
+                p_vasoregulation = Math.min(25, (finalCoreTemp - baseCoreTemp) * 40);
+            }
+
+            // Net Heat Rate Penalty
+            const p_net = Math.abs(averages.netRate) * 0.2;
+
+            let score = 100 - p_core - p_skin - p_response_shiver_sweat - p_net - p_vasoregulation;
+
+            return Math.max(0, Math.min(100, score));
         }
 
         function updatePhysiologyStatus(vaso, dilate, shiver, sweat) {
@@ -836,17 +968,16 @@
             }
         }
 
-        function updateDetailedStatus(finalState) {
-            dom.detailMetabolic.textContent = `${finalState.heatProductionWatts.toFixed(1)} W`;
-            dom.detailSolar.textContent = `${finalState.solarHeatGainWatts.toFixed(1)} W`;
-            dom.detailRespiratory.textContent = `${finalState.heatLossResp.toFixed(1)} W`;
-            dom.detailDry.textContent = `${finalState.heatLossDry.toFixed(1)} W`;
-            dom.detailSweat.textContent = `${finalState.sweatingHeatLoss.toFixed(1)} W`;
-            dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} W`;
-            dom.detailShivering.textContent = `${finalState.shiveringIntensity.toFixed(0)} %`;
-            dom.detailSweating.textContent = `${finalState.sweatingIntensity.toFixed(0)} %`;
+        function updateDetailedStatus(finalState, averages) {
+            dom.detailMetabolic.textContent = `${finalState.heatProductionWatts.toFixed(1)} / ${averages.heatProductionWatts.toFixed(1)} W`;
+            dom.detailSolar.textContent = `${finalState.solarHeatGainWatts.toFixed(1)} / ${averages.solarHeatGainWatts.toFixed(1)} W`;
+            dom.detailRespiratory.textContent = `${finalState.heatLossResp.toFixed(1)} / ${averages.heatLossResp.toFixed(1)} W`;
+            dom.detailDry.textContent = `${finalState.heatLossDry.toFixed(1)} / ${averages.heatLossDry.toFixed(1)} W`;
+            dom.detailSweat.textContent = `${finalState.sweatingHeatLoss.toFixed(1)} / ${averages.sweatingHeatLoss.toFixed(1)} W`;
+            dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} / ${averages.netRate.toFixed(1)} W`;
+            dom.detailShivering.textContent = `${finalState.shiveringIntensity.toFixed(1)} %`;
+            dom.detailSweating.textContent = `${finalState.sweatingIntensity.toFixed(1)} %`;
         }
-
 
         function renderChart(data, coreTemp) {
             const svg = dom.chart;
@@ -886,7 +1017,7 @@
             svg.appendChild(line);
         }
 
-        function updateSimulationSummary(finalTemp, coreTemp) {
+        function updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore) {
             const t = translations[currentLang];
             let summaryText, bgColor, textColor;
             const finalTempStr = finalTemp.toFixed(2);
@@ -910,14 +1041,36 @@
                 summaryText = t.summary_overheating; bgColor = 'bg-red-600'; textColor = 'text-white';
             }
 
-            dom.simSummary.innerHTML = `<span>${finalTempStr}°C</span><span class="text-lg ml-3 font-medium">${summaryText}</span>`;
-            dom.simSummary.className = `text-4xl font-bold p-3 rounded-lg h-24 flex items-center justify-center text-center transition-all duration-500 ${bgColor} ${textColor}`;
+            const skinTempText = `<div class="text-base font-medium mt-1 text-orange-200">${t.final_skin_temp}: ${finalSkinTemp.toFixed(2)}°C</div>`;
+            dom.simSummary.innerHTML = `<div><span class="text-4xl">${finalTempStr}°C</span><span class="text-lg ml-3 font-medium">${summaryText}</span></div>${skinTempText}`;
+            dom.simSummary.className = `font-bold p-3 rounded-lg h-24 flex flex-col items-center justify-center text-center transition-all duration-500 ${bgColor} ${textColor}`;
+
+            // Update comfort score display
+            if (dom.comfortScore) {
+                let comfortColor = 'text-green-300';
+                let comfortKey = 'comfort_ideal';
+                if (comfortScore < 80) {
+                    comfortColor = 'text-yellow-300';
+                    comfortKey = 'comfort_acceptable';
+                }
+                if (comfortScore < 60) {
+                    comfortColor = 'text-orange-300';
+                    comfortKey = 'comfort_uncomfortable';
+                }
+                if (comfortScore < 40) {
+                    comfortColor = 'text-red-400';
+                    comfortKey = 'comfort_distress';
+                }
+                lastComfortText = t[comfortKey];
+                dom.comfortScore.innerHTML = `<span class="${comfortColor}">${comfortScore.toFixed(0)} / 100</span> <span class="text-base align-bottom ml-1 ${comfortColor}">(${lastComfortText})</span>`;
+            }
         }
 
         function handleAddClothing() {
             const key = dom.clothingItem.value;
             if (!key) return;
-            const item = JSON.parse(JSON.stringify(clothingData[key]));
+            // Store the item key along with its data for more accurate JSON output
+            const item = { itemId: key, ...JSON.parse(JSON.stringify(clothingData[key])) };
             currentOutfit.push(item);
             updateOutfitUI();
         }
@@ -925,6 +1078,79 @@
         function handleRemoveClothing(event) {
             currentOutfit.splice(parseInt(event.target.dataset.index, 10), 1);
             updateOutfitUI();
+        }
+
+        function handleCopyJson() {
+            const t = translations[currentLang];
+            const inputs = {
+                gender: dom.gender.value,
+                height_cm: parseFloat(dom.height.value),
+                weight_kg: parseFloat(dom.weight.value),
+                age_years: parseInt(dom.age.value),
+                base_core_temp_c: parseFloat(dom.coreTemp.value),
+                air_temp_c: parseFloat(dom.temperature.value),
+                wind_speed_kmh: parseFloat(dom.wind.value),
+                relative_humidity_percent: parseFloat(dom.humidity.value),
+                solar_radiation_wm2: parseFloat(dom.solarLevel.value),
+                activity_met: parseFloat(dom.activity.value),
+                duration_min: parseInt(dom.duration.value),
+                outfit: currentOutfit.map(item => ({
+                    // Use the stored itemId
+                    name: currentLang === 'en' ? item.name_en : item.name,
+                    coverage: item.coverage,
+                })),
+            };
+
+            const outputs = {
+                total_clo_sum: parseFloat(dom.totalClo.textContent),
+                effective_clo_weighted: parseFloat(dom.effectiveClo.textContent),
+                final_core_temp_c: parseFloat(dom.simSummary.querySelector('span').textContent),
+                final_skin_temp_c: parseFloat(dom.simSummary.querySelector('.text-orange-200').textContent.split(': ')[1]),
+                physiological_response: dom.physiologyStatusText.textContent,
+                overall_comfort_score: parseFloat(dom.comfortScore.textContent.split(' / ')[0]),
+                overall_comfort_text: lastComfortText,
+                detailed_heat_balance_watts: {
+                    metabolic_gain: parseFloat(dom.detailMetabolic.textContent.split(' / ')[0]),
+                    solar_gain: parseFloat(dom.detailSolar.textContent.split(' / ')[0]),
+                    respiratory_loss: parseFloat(dom.detailRespiratory.textContent.split(' / ')[0]),
+                    dry_skin_loss: parseFloat(dom.detailDry.textContent.split(' / ')[0]),
+                    sweat_evaporation_loss: parseFloat(dom.detailSweat.textContent.split(' / ')[0]),
+                    final_net_rate: parseFloat(dom.detailNet.textContent.split(' / ')[0]),
+                },
+                average_heat_balance_watts: {
+                    metabolic_gain: lastSimulationResults.heatProductionWatts,
+                    solar_gain: lastSimulationResults.solarHeatGainWatts,
+                    respiratory_loss: lastSimulationResults.heatLossResp,
+                    dry_skin_loss: lastSimulationResults.heatLossDry,
+                    sweat_evaporation_loss: lastSimulationResults.sweatingHeatLoss,
+                    net_rate: lastSimulationResults.netRate,
+                },
+                physiological_response_intensity_percent: {
+                    shivering: parseFloat(dom.detailShivering.textContent),
+                    sweating: parseFloat(dom.detailSweating.textContent),
+                }
+            };
+
+            const fullReport = {
+                timestamp: new Date().toISOString(),
+                inputs: inputs,
+                results: outputs
+            };
+
+            navigator.clipboard.writeText(JSON.stringify(fullReport, null, 2)).then(() => {
+                const originalText = dom.copyJsonBtn.textContent;
+                dom.copyJsonBtn.textContent = currentLang === 'en' ? 'Copied!' : '已复制!';
+                setTimeout(() => {
+                    dom.copyJsonBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy JSON: ', err);
+                const originalText = dom.copyJsonBtn.textContent;
+                dom.copyJsonBtn.textContent = currentLang === 'en' ? 'Error!' : '复制失败!';
+                setTimeout(() => {
+                    dom.copyJsonBtn.textContent = originalText;
+                }, 2000);
+            });
         }
 
         function triggerSimulation() {
@@ -936,6 +1162,7 @@
             setLanguage(navigator.language || navigator.userLanguage);
 
             dom.addBtn.addEventListener('click', handleAddClothing);
+            dom.copyJsonBtn.addEventListener('click', handleCopyJson);
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
                     element.addEventListener('input', triggerSimulation);
