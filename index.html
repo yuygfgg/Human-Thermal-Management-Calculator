@@ -196,7 +196,9 @@
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-300" data-t="add_clothing"></label>
                             <div class="flex space-x-2"><select id="clothing-item"
-                                    class="input-field flex-grow"></select><button id="add-clothing-btn"
+                                    class="input-field flex-grow"></select>
+                                <select id="thickness-modifier" class="input-field w-32"></select>
+                                <button id="add-clothing-btn"
                                     class="btn-secondary" data-t="add_btn"></button></div>
                         </div>
                         <div class="space-y-2">
@@ -379,6 +381,10 @@
                 comfort_acceptable: "Acceptable",
                 comfort_uncomfortable: "Uncomfortable",
                 comfort_distress: "Distress",
+                thickness_modifier: "Thickness",
+                mod_thin: "Thin",
+                mod_normal: "Normal",
+                mod_thick: "Thick",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -462,84 +468,86 @@
                 comfort_acceptable: "基本舒适",
                 comfort_uncomfortable: "感到不适",
                 comfort_distress: "非常不适",
+                thickness_modifier: "厚度",
+                mod_thin: "薄款",
+                mod_normal: "正常",
+                mod_thick: "厚款",
             }
         };
 
         const clothingData = {
             // Base Layer
-            "base_underwear": { name: "普通内衣裤", name_en: "Regular Underwear", coverage: { torso: 0.04, legs: 0.02 }, category: "cat_base" },
-            "base_sports_bra": { name: "运动内衣", name_en: "Sports Bra", coverage: { torso: 0.03 }, category: "cat_base" },
-            "base_t_shirt": { name: "棉质T恤", name_en: "Cotton T-shirt", coverage: { torso: 0.10, arms: 0.05 }, category: "cat_base" },
-            "base_synthetic_tshirt": { name: "速干T恤", name_en: "Synthetic T-shirt", coverage: { torso: 0.12, arms: 0.06 }, category: "cat_base" },
-            "base_tank_top": { name: "背心", name_en: "Tank Top", coverage: { torso: 0.06 }, category: "cat_base" },
-            "base_silk_long": { name: "真丝长内衣", name_en: "Silk Long Underwear", coverage: { torso: 0.10, arms: 0.08, legs: 0.10 }, category: "cat_base" },
-            "base_thermal_long": { name: "长袖保暖内衣", name_en: "Thermal Long Underwear", coverage: { torso: 0.25, arms: 0.20, legs: 0.25 }, category: "cat_base" },
+            "base_underwear": { name: "普通内衣裤", name_en: "Regular Underwear", regionalClo: { torso: 0.04, legs: 0.02 }, category: "cat_base" },
+            "base_sports_bra": { name: "运动内衣", name_en: "Sports Bra", regionalClo: { torso: 0.03 }, category: "cat_base" },
+            "base_t_shirt": { name: "棉质T恤", name_en: "Cotton T-shirt", regionalClo: { torso: 0.10, arms: 0.05 }, category: "cat_base" },
+            "base_synthetic_tshirt": { name: "速干T恤", name_en: "Synthetic T-shirt", regionalClo: { torso: 0.12, arms: 0.06 }, category: "cat_base" },
+            "base_tank_top": { name: "背心", name_en: "Tank Top", regionalClo: { torso: 0.06 }, category: "cat_base" },
+            "base_silk_long": { name: "真丝长内衣", name_en: "Silk Long Underwear", regionalClo: { torso: 0.10, arms: 0.08, legs: 0.10 }, category: "cat_base" },
+            "base_thermal_long": { name: "长袖保暖内衣", name_en: "Thermal Long Underwear", regionalClo: { torso: 0.25, arms: 0.20 }, category: "cat_base" },
             // Mid Layer
-            "mid_long_sleeve_shirt": { name: "长袖衬衫", name_en: "Long-sleeve Shirt", coverage: { torso: 0.22, arms: 0.14 }, category: "cat_mid" },
-            "mid_flannel_shirt": { name: "法兰绒衬衫", name_en: "Flannel Shirt", coverage: { torso: 0.30, arms: 0.20 }, category: "cat_mid" },
-            "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", coverage: { torso: 0.32, arms: 0.18 }, category: "cat_mid" },
-            "mid_thin_sweater": { name: "薄款毛衣", name_en: "Thin Sweater", coverage: { torso: 0.28, arms: 0.18 }, category: "cat_mid" },
-            "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
-            "mid_thin_hoodie": { name: "薄款连帽卫衣", name_en: "Lightweight Hoodie", coverage: { head: 0.08, torso: 0.25, arms: 0.18 }, category: "cat_mid" },
-            "mid_hoodie": { name: "标准连帽卫衣", name_en: "Standard Hoodie", coverage: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
-            "mid_fleece_hoodie": { name: "加绒连帽卫衣", name_en: "Fleece-lined Hoodie", coverage: { head: 0.12, torso: 0.45, arms: 0.32 }, category: "cat_mid" },
-            "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", coverage: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
-            "mid_thick_sweater": { name: "厚款毛衣", name_en: "Thick Sweater", coverage: { torso: 0.45, arms: 0.30 }, category: "cat_mid" },
-            "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", coverage: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
-            "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", coverage: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
+            "mid_long_sleeve_shirt": { name: "长袖衬衫", name_en: "Long-sleeve Shirt", regionalClo: { torso: 0.22, arms: 0.14 }, category: "cat_mid" },
+            "mid_flannel_shirt": { name: "法兰绒衬衫", name_en: "Flannel Shirt", regionalClo: { torso: 0.30, arms: 0.20 }, category: "cat_mid" },
+            "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", regionalClo: { torso: 0.32, arms: 0.18 }, category: "cat_mid" },
+            "mid_sweater": { name: "毛衣", name_en: "Sweater", regionalClo: { torso: 0.37, arms: 0.24 }, category: "cat_mid" },
+            "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
+            "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", regionalClo: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
+            "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
+            "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", regionalClo: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
+            "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", regionalClo: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
             // Outer Layer
-            "outer_cardigan": { name: "开衫", name_en: "Cardigan", coverage: { torso: 0.25, arms: 0.16 }, category: "cat_outer" },
-            "outer_blazer": { name: "西装外套", name_en: "Blazer", coverage: { torso: 0.35, arms: 0.22 }, category: "cat_outer" },
-            "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", coverage: { torso: 0.28, arms: 0.18 }, category: "cat_outer" },
-            "outer_leather_jacket": { name: "皮夹克", name_en: "Leather Jacket", coverage: { torso: 0.30, arms: 0.20 }, category: "cat_outer" },
-            "outer_windbreaker": { name: "风衣", name_en: "Windbreaker", coverage: { torso: 0.25, arms: 0.15, legs: 0.10 }, category: "cat_outer" },
-            "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", coverage: { head: 0.10, torso: 0.30, arms: 0.20 }, category: "cat_outer" },
-            "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", coverage: { torso: 0.55 }, category: "cat_outer" },
-            "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", coverage: { torso: 0.80, arms: 0.50, legs: 0.15 }, category: "cat_outer" },
-            "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", coverage: { head: 0.15, torso: 1.20, arms: 0.80 }, category: "cat_outer" },
-            "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", coverage: { head: 0.20, torso: 0.60, arms: 0.45 }, category: "cat_outer" },
-            "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", coverage: { head: 0.30, torso: 2.00, arms: 1.20, legs: 0.20 }, category: "cat_outer" },
-            "outer_cloak": { name: "斗篷/披风", name_en: "Cloak/Cape", coverage: { head: 0.05, torso: 0.45, arms: 0.15 }, category: "cat_outer" },
-            "outer_poncho": { name: "雨披", name_en: "Poncho", coverage: { head: 0.08, torso: 0.35, arms: 0.10 }, category: "cat_outer" },
+            "outer_cardigan": { name: "开衫", name_en: "Cardigan", regionalClo: { torso: 0.25, arms: 0.16 }, category: "cat_outer" },
+            "outer_blazer": { name: "西装外套", name_en: "Blazer", regionalClo: { torso: 0.35, arms: 0.22 }, category: "cat_outer" },
+            "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", regionalClo: { torso: 0.28, arms: 0.18 }, category: "cat_outer" },
+            "outer_leather_jacket": { name: "皮夹克", name_en: "Leather Jacket", regionalClo: { torso: 0.30, arms: 0.20 }, category: "cat_outer" },
+            "outer_windbreaker": { name: "风衣", name_en: "Windbreaker", regionalClo: { torso: 0.25, arms: 0.15, legs: 0.10 }, category: "cat_outer" },
+            "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", regionalClo: { head: 0.10, torso: 0.30, arms: 0.20 }, category: "cat_outer" },
+            "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", regionalClo: { torso: 0.55 }, category: "cat_outer" },
+            "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", regionalClo: { torso: 0.80, arms: 0.50, legs: 0.15 }, category: "cat_outer" },
+            "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", regionalClo: { head: 0.15, torso: 1.20, arms: 0.80 }, category: "cat_outer" },
+            "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", regionalClo: { head: 0.20, torso: 0.60, arms: 0.45 }, category: "cat_outer" },
+            "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", regionalClo: { head: 0.30, torso: 2.00, arms: 1.20, legs: 0.20 }, category: "cat_outer" },
+            "outer_cloak": { name: "斗篷/披风", name_en: "Cloak/Cape", regionalClo: { head: 0.05, torso: 0.45, arms: 0.15 }, category: "cat_outer" },
+            "outer_poncho": { name: "雨披", name_en: "Poncho", regionalClo: { head: 0.08, torso: 0.35, arms: 0.10 }, category: "cat_outer" },
             // Bottoms
-            "pants_shorts": { name: "短裤", name_en: "Shorts", coverage: { legs: 0.08 }, category: "cat_bottoms" },
-            "pants_mini_skirt": { name: "迷你裙", name_en: "Mini Skirt", coverage: { legs: 0.05 }, category: "cat_bottoms" },
-            "pants_pleated_skirt": { name: "百褶裙", name_en: "Pleated Skirt", coverage: { legs: 0.15 }, category: "cat_bottoms" },
-            "pants_knee_length_skirt": { name: "及膝裙", name_en: "Knee-length Skirt", coverage: { legs: 0.20 }, category: "cat_bottoms" },
-            "pants_long_skirt": { name: "长裙", name_en: "Long Skirt", coverage: { legs: 0.28 }, category: "cat_bottoms" },
-            "pants_leggings": { name: "打底裤", name_en: "Leggings", coverage: { legs: 0.15 }, category: "cat_bottoms" },
-            "pants_fleece_lined_leggings": { name: "抓绒打底裤", name_en: "Fleece-lined Leggings", coverage: { legs: 0.35 }, category: "cat_bottoms" },
-            "pants_trousers": { name: "西裤/休闲裤", name_en: "Trousers/Pants", coverage: { legs: 0.28 }, category: "cat_bottoms" },
-            "pants_jeans": { name: "牛仔裤", name_en: "Jeans", coverage: { legs: 0.32 }, category: "cat_bottoms" },
-            "pants_cargo_pants": { name: "工装裤", name_en: "Cargo Pants", coverage: { legs: 0.30 }, category: "cat_bottoms" },
-            "pants_sweatpants": { name: "运动裤", name_en: "Sweatpants", coverage: { legs: 0.30 }, category: "cat_bottoms" },
-            "pants_softshell_trousers": { name: "软壳裤", name_en: "Softshell Trousers", coverage: { legs: 0.50 }, category: "cat_bottoms" },
-            "pants_insulated": { name: "保暖裤", name_en: "Insulated Pants", coverage: { legs: 0.60 }, category: "cat_bottoms" },
-            "pants_ski": { name: "滑雪裤", name_en: "Ski Pants", coverage: { legs: 1.00 }, category: "cat_bottoms" },
+            "pants_shorts": { name: "短裤", name_en: "Shorts", regionalClo: { legs: 0.08 }, category: "cat_bottoms" },
+            "pants_mini_skirt": { name: "迷你裙", name_en: "Mini Skirt", regionalClo: { legs: 0.05 }, category: "cat_bottoms" },
+            "pants_pleated_skirt": { name: "百褶裙", name_en: "Pleated Skirt", regionalClo: { legs: 0.15 }, category: "cat_bottoms" },
+            "pants_knee_length_skirt": { name: "及膝裙", name_en: "Knee-length Skirt", regionalClo: { legs: 0.20 }, category: "cat_bottoms" },
+            "pants_long_skirt": { name: "长裙", name_en: "Long Skirt", regionalClo: { legs: 0.28 }, category: "cat_bottoms" },
+            "pants_leggings": { name: "打底裤/紧身裤", name_en: "Leggings/Tights", regionalClo: { legs: 0.25 }, category: "cat_bottoms" },
+            "pants_trousers": { name: "西裤/休闲裤", name_en: "Trousers/Pants", regionalClo: { legs: 0.28 }, category: "cat_bottoms" },
+            "pants_jeans": { name: "牛仔裤", name_en: "Jeans", regionalClo: { legs: 0.32 }, category: "cat_bottoms" },
+            "pants_cargo_pants": { name: "工装裤", name_en: "Cargo Pants", regionalClo: { legs: 0.30 }, category: "cat_bottoms" },
+            "pants_sweatpants": { name: "运动裤", name_en: "Sweatpants", regionalClo: { legs: 0.30 }, category: "cat_bottoms" },
+            "pants_softshell_trousers": { name: "软壳裤", name_en: "Softshell Trousers", regionalClo: { legs: 0.50 }, category: "cat_bottoms" },
+            "pants_insulated": { name: "保暖裤", name_en: "Insulated Pants", regionalClo: { legs: 0.60 }, category: "cat_bottoms" },
+            "pants_ski": { name: "滑雪裤", name_en: "Ski Pants", regionalClo: { legs: 1.00 }, category: "cat_bottoms" },
             // Full Body
-            "full_dress": { name: "连衣裙", name_en: "Dress", coverage: { torso: 0.28, arms: 0.18, legs: 0.20 }, category: "cat_full" },
-            "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", coverage: { torso: 0.35, arms: 0.22, legs: 0.28 }, category: "cat_full" },
+            "full_dress": { name: "连衣裙", name_en: "Dress", regionalClo: { torso: 0.28, arms: 0.18, legs: 0.20 }, category: "cat_full" },
+            "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", regionalClo: { torso: 0.35, arms: 0.22, legs: 0.28 }, category: "cat_full" },
             // Accessories
-            "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", coverage: { legs: 0.01, feet: 0.00 }, category: "cat_acc" },
-            "acc_tights_20d": { name: "丝袜 (20D)", name_en: "Sheer Tights (20D)", coverage: { legs: 0.02, feet: 0.01 }, category: "cat_acc" },
-            "acc_tights_80d": { name: "连裤袜 (80D)", name_en: "Opaque Tights (80D)", coverage: { legs: 0.08, feet: 0.01 }, category: "cat_acc" },
-            "acc_tights_200d": { name: "厚连裤袜 (200D)", name_en: "Thick Tights (200D)", coverage: { legs: 0.15, feet: 0.02 }, category: "cat_acc" },
-            "acc_ankle_socks": { name: "船袜", name_en: "Ankle Socks", coverage: { feet: 0.03 }, category: "cat_acc" },
-            "acc_crew_socks": { name: "中筒袜", name_en: "Crew Socks", coverage: { feet: 0.04 }, category: "cat_acc" },
-            "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", coverage: { feet: 0.05, legs: 0.10 }, category: "cat_acc" },
-            "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", coverage: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
-            "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", coverage: { feet: 0.10 }, category: "cat_acc" },
-            "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", coverage: { feet: 0.05 }, category: "cat_acc" },
-            "acc_boots": { name: "靴子", name_en: "Boots", coverage: { feet: 0.12, legs: 0.06 }, category: "cat_acc" },
-            "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", coverage: { feet: 0.25, legs: 0.10 }, category: "cat_acc" },
-            "acc_thin_gloves": { name: "薄手套", name_en: "Thin Gloves", coverage: { hands: 0.15 }, category: "cat_acc" },
-            "acc_insulated_gloves": { name: "保暖手套", name_en: "Insulated Gloves", coverage: { hands: 0.35 }, category: "cat_acc" },
-            "acc_mittens": { name: "连指厚手套", name_en: "Mittens", coverage: { hands: 0.40 }, category: "cat_acc" },
-            "acc_scarf": { name: "围巾", name_en: "Scarf", coverage: { torso: 0.20 }, category: "cat_acc" },
-            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", coverage: { torso: 0.18 }, category: "cat_acc" },
-            "acc_beanie": { name: "毛线帽", name_en: "Beanie", coverage: { head: 0.25 }, category: "cat_acc" },
-            "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", coverage: { head: 0.10 }, category: "cat_acc" },
-            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", coverage: { head: 0.40 }, category: "cat_acc" },
+            "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", regionalClo: { legs: 0.01, feet: 0.00 }, category: "cat_acc" },
+            "acc_tights": { name: "连裤袜", name_en: "Tights/Pantyhose", regionalClo: { legs: 0.08, feet: 0.01 }, category: "cat_acc" },
+            "acc_ankle_socks": { name: "船袜", name_en: "Ankle Socks", regionalClo: { feet: 0.03 }, category: "cat_acc" },
+            "acc_crew_socks": { name: "中筒袜", name_en: "Crew Socks", regionalClo: { feet: 0.04 }, category: "cat_acc" },
+            "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", regionalClo: { feet: 0.05, legs: 0.10 }, category: "cat_acc" },
+            "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", regionalClo: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
+            "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", regionalClo: { feet: 0.10 }, category: "cat_acc" },
+            "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", regionalClo: { feet: 0.05 }, category: "cat_acc" },
+            "acc_boots": { name: "靴子", name_en: "Boots", regionalClo: { feet: 0.12, legs: 0.06 }, category: "cat_acc" },
+            "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", regionalClo: { feet: 0.25, legs: 0.10 }, category: "cat_acc" },
+            "acc_gloves": { name: "手套", name_en: "Gloves", regionalClo: { hands: 0.25 }, category: "cat_acc" },
+            "acc_mittens": { name: "连指厚手套", name_en: "Mittens", regionalClo: { hands: 0.40 }, category: "cat_acc" },
+            "acc_scarf": { name: "围巾", name_en: "Scarf", regionalClo: { torso: 0.20 }, category: "cat_acc" },
+            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", regionalClo: { torso: 0.18 }, category: "cat_acc" },
+            "acc_beanie": { name: "毛线帽", name_en: "Beanie", regionalClo: { head: 0.25 }, category: "cat_acc" },
+            "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", regionalClo: { head: 0.10 }, category: "cat_acc" },
+            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", regionalClo: { head: 0.40 }, category: "cat_acc" },
+        };
+        const thicknessModifiers = {
+            thin: { value: 0.75, key: 'mod_thin' },
+            normal: { value: 1.0, key: 'mod_normal' },
+            thick: { value: 1.25, key: 'mod_thick' },
         };
         // From https://comfort.cbe.berkeley.edu/
         const activityLevels = [
@@ -587,6 +595,7 @@
             coreTemp: document.getElementById('core-temp'),
             detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
             effectiveClo: document.getElementById('effective-clo'),
+            thicknessModifier: document.getElementById('thickness-modifier'),
             copyJsonBtn: document.getElementById('copy-json-btn'),
             comfortScore: document.getElementById('comfort-score'),
         };
@@ -603,6 +612,7 @@
             });
             populateClothingSelect();
             populateActivitySelect();
+            populateThicknessSelect();
             updateOutfitUI();
             triggerSimulation();
         }
@@ -631,6 +641,20 @@
             }
         }
 
+        function populateThicknessSelect() {
+            dom.thicknessModifier.innerHTML = '';
+            const t = translations[currentLang];
+            for (const key in thicknessModifiers) {
+                const option = document.createElement('option');
+                option.value = thicknessModifiers[key].value;
+                option.textContent = t[thicknessModifiers[key].key];
+                if (key === 'normal') {
+                    option.selected = true;
+                }
+                dom.thicknessModifier.appendChild(option);
+            }
+        }
+
         function populateActivitySelect() {
             dom.activity.innerHTML = '';
             activityLevels
@@ -642,6 +666,17 @@
                     option.textContent = currentLang === 'en' ? item.name_en : item.name_zh;
                     dom.activity.appendChild(option);
                 });
+        }
+
+        function getModifierText(modifierValue) {
+            const t = translations[currentLang];
+            const epsilon = 0.001;
+            for (const key in thicknessModifiers) {
+                if (Math.abs(thicknessModifiers[key].value - modifierValue) < epsilon) {
+                    return t[thicknessModifiers[key].key];
+                }
+            }
+            return t.mod_normal; // Default case
         }
 
         function updateOutfitUI() {
@@ -656,9 +691,10 @@
             } else {
                 currentOutfit.forEach((item, index) => {
                     const name = currentLang === 'en' ? item.name_en : item.name;
+                    const modifierText = getModifierText(item.modifier);
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md animate-fade-in';
-                    itemDiv.innerHTML = `<span>${name}</span><button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>`;
+                    itemDiv.innerHTML = `<span>${name} <span class="text-xs text-gray-400">(${modifierText})</span></span><button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>`;
                     dom.outfitList.appendChild(itemDiv);
                 });
             }
@@ -671,8 +707,12 @@
             const regionalClo = {};
             for (const regionKey in bodyRegions) {
                 const layersForRegion = currentOutfit
-                    .filter(item => item.coverage.hasOwnProperty(regionKey))
-                    .map(item => item.coverage[regionKey])
+                    .filter(item => item.regionalClo.hasOwnProperty(regionKey))
+                    .map(item => {
+                        const baseClo = item.regionalClo[regionKey];
+                        const modifier = item.modifier || 1.0;
+                        return baseClo * modifier;
+                    })
                     .sort((a, b) => b - a);
                 let effectiveClo = 0, efficiency = 1.0;
                 for (const layerClo of layersForRegion) {
@@ -1069,8 +1109,13 @@
         function handleAddClothing() {
             const key = dom.clothingItem.value;
             if (!key) return;
+            const modifier = parseFloat(dom.thicknessModifier.value);
             // Store the item key along with its data for more accurate JSON output
-            const item = { itemId: key, ...JSON.parse(JSON.stringify(clothingData[key])) };
+            const item = {
+                itemId: key,
+                modifier: modifier,
+                ...JSON.parse(JSON.stringify(clothingData[key]))
+            };
             currentOutfit.push(item);
             updateOutfitUI();
         }
@@ -1097,7 +1142,9 @@
                 outfit: currentOutfit.map(item => ({
                     // Use the stored itemId
                     name: currentLang === 'en' ? item.name_en : item.name,
-                    coverage: item.coverage,
+                    regionalClo: item.regionalClo,
+                    thickness_modifier: item.modifier,
+                    thickness_modifier_text: getModifierText(item.modifier),
                 })),
             };
 
