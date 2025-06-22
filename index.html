@@ -385,6 +385,16 @@
                 mod_thin: "Thin",
                 mod_normal: "Normal",
                 mod_thick: "Thick",
+                edit_btn: "Edit",
+                cancel_btn: "Cancel",
+                save_btn: "Save",
+                edit_clothing_preset: "Edit Clothing Preset",
+                region_head: "Head",
+                region_torso: "Torso",
+                region_arms: "Arms",
+                region_hands: "Hands",
+                region_legs: "Legs",
+                region_feet: "Feet",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -472,6 +482,16 @@
                 mod_thin: "薄款",
                 mod_normal: "正常",
                 mod_thick: "厚款",
+                edit_btn: "编辑",
+                cancel_btn: "取消",
+                save_btn: "保存",
+                edit_clothing_preset: "编辑衣物预设",
+                region_head: "头部",
+                region_torso: "躯干",
+                region_arms: "手臂",
+                region_hands: "手部",
+                region_legs: "腿部",
+                region_feet: "脚部",
             }
         };
 
@@ -589,17 +609,8 @@
         let lastSimulationResults = {};
         let lastComfortText = '';
         let lastComfortKey = '';
-
-        const dom = {
-            gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
-            physiologyStatusText: document.getElementById('physiology-status-text'),
-            coreTemp: document.getElementById('core-temp'),
-            detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
-            effectiveClo: document.getElementById('effective-clo'),
-            thicknessModifier: document.getElementById('thickness-modifier'),
-            copyJsonBtn: document.getElementById('copy-json-btn'),
-            comfortScore: document.getElementById('comfort-score'),
-        };
+        let currentEditIndex = -1;
+        let dom;
 
         function setLanguage(lang) {
             currentLang = lang.startsWith('en') ? 'en' : 'zh';
@@ -699,11 +710,20 @@
                     const modifierText = getModifierText(item.modifier);
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md animate-fade-in';
-                    itemDiv.innerHTML = `<span>${name} <span class="text-xs text-gray-400">(${modifierText})</span></span><button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>`;
+                    itemDiv.innerHTML = `
+                        <div>
+                            <span>${name} <span class="text-xs text-gray-400">(${modifierText})</span></span>
+                        </div>
+                        <div class="flex items-center space-x-2 flex-shrink-0">
+                            <button data-index="${index}" class="edit-btn text-sky-400 hover:text-sky-300 text-xs font-bold">${t.edit_btn}</button>
+                            <button data-index="${index}" class="remove-btn text-red-500 hover:text-red-400 text-xs font-bold">${t.remove_btn}</button>
+                        </div>
+                    `;
                     dom.outfitList.appendChild(itemDiv);
                 });
             }
             document.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', handleRemoveClothing));
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', (e) => openEditModal(parseInt(e.target.dataset.index, 10))));
             triggerSimulation();
         }
 
@@ -1241,11 +1261,115 @@
             debounceTimer = setTimeout(runSimulation, 250);
         }
 
+        function openEditModal(index) {
+            currentEditIndex = index;
+            const item = currentOutfit[index];
+            if (!item) return;
+
+            const t = translations[currentLang];
+            const name = currentLang === 'en' ? item.name_en : item.name;
+
+            dom.editModalItemName.textContent = name;
+            dom.editModalBody.innerHTML = '';
+
+            const regionOrder = ['head', 'torso', 'arms', 'hands', 'legs', 'feet'];
+
+            regionOrder.forEach(regionKey => {
+                const value = item.regionalClo[regionKey] || 0;
+                const regionName = t[`region_${regionKey}`] || regionKey;
+
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'grid grid-cols-2 items-center gap-4';
+                inputGroup.innerHTML = `
+                    <label for="edit-clo-${regionKey}" class="text-sm font-medium text-gray-300 justify-self-start">${regionName}</label>
+                    <input type="number" id="edit-clo-${regionKey}" value="${value.toFixed(3)}" step="0.01" min="0" class="input-field">
+                `;
+                dom.editModalBody.appendChild(inputGroup);
+            });
+
+            const thicknessDiv = document.createElement('div');
+            thicknessDiv.className = 'grid grid-cols-2 items-center gap-4 mt-4 pt-4 border-t border-gray-700';
+            thicknessDiv.innerHTML = `<label for="edit-thickness-modifier" class="text-sm font-medium text-gray-300 justify-self-start">${t.thickness_modifier}</label>`;
+            const select = document.createElement('select');
+            select.id = 'edit-thickness-modifier';
+            select.className = 'input-field';
+
+            for (const key in thicknessModifiers) {
+                const option = document.createElement('option');
+                option.value = thicknessModifiers[key].value;
+                option.textContent = t[thicknessModifiers[key].key];
+                if (Math.abs(thicknessModifiers[key].value - (item.modifier || 1.0)) < 0.001) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            }
+            thicknessDiv.appendChild(select);
+            dom.editModalBody.appendChild(thicknessDiv);
+
+            dom.editModal.classList.remove('hidden');
+            setTimeout(() => {
+                dom.editModal.querySelector('.transform').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            dom.editModal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                dom.editModal.classList.add('hidden');
+                currentEditIndex = -1;
+            }, 300);
+        }
+
+        function handleSaveEdit() {
+            if (currentEditIndex === -1) return;
+
+            const item = currentOutfit[currentEditIndex];
+            const regionOrder = ['head', 'torso', 'arms', 'hands', 'legs', 'feet'];
+
+            regionOrder.forEach(regionKey => {
+                const input = document.getElementById(`edit-clo-${regionKey}`);
+                const value = parseFloat(input.value);
+                if (!isNaN(value) && value > 0) {
+                    item.regionalClo[regionKey] = value;
+                } else {
+                    delete item.regionalClo[regionKey];
+                }
+            });
+
+            const thicknessSelect = document.getElementById('edit-thickness-modifier');
+            if (thicknessSelect) {
+                item.modifier = parseFloat(thicknessSelect.value);
+            }
+
+            closeEditModal();
+            updateOutfitUI();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            dom = {
+                gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
+                physiologyStatusText: document.getElementById('physiology-status-text'),
+                coreTemp: document.getElementById('core-temp'),
+                detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
+                effectiveClo: document.getElementById('effective-clo'),
+                thicknessModifier: document.getElementById('thickness-modifier'),
+                copyJsonBtn: document.getElementById('copy-json-btn'),
+                comfortScore: document.getElementById('comfort-score'),
+                editModal: document.getElementById('edit-modal'),
+                editModalCloseBtn: document.getElementById('edit-modal-close-btn'),
+                editModalItemName: document.getElementById('edit-modal-item-name'),
+                editModalBody: document.getElementById('edit-modal-body'),
+                editModalCancel: document.getElementById('edit-modal-cancel'),
+                editModalSave: document.getElementById('edit-modal-save'),
+            };
+
             setLanguage(navigator.language || navigator.userLanguage);
 
             dom.addBtn.addEventListener('click', handleAddClothing);
             dom.copyJsonBtn.addEventListener('click', handleCopyJson);
+            dom.editModalSave.addEventListener('click', handleSaveEdit);
+            dom.editModalCancel.addEventListener('click', closeEditModal);
+            dom.editModalCloseBtn.addEventListener('click', closeEditModal);
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
                     element.addEventListener('input', triggerSimulation);
@@ -1255,6 +1379,25 @@
             // Initial Run is triggered by setLanguage
         });
     </script>
+
+    <div id="edit-modal"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50 transition-opacity duration-300">
+        <div class="card p-6 rounded-xl w-full max-w-md m-4 transform transition-all duration-300 scale-95 opacity-0">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-white" data-t="edit_clothing_preset"></h2>
+                <button id="edit-modal-close-btn"
+                    class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <p id="edit-modal-item-name" class="text-violet-300 font-semibold mb-4"></p>
+            <div id="edit-modal-body" class="space-y-3">
+            </div>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button id="edit-modal-cancel" class="btn-secondary" data-t="cancel_btn"></button>
+                <button id="edit-modal-save" class="btn-secondary bg-violet-600 hover:bg-violet-700"
+                    data-t="save_btn"></button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
