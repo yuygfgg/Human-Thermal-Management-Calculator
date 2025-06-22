@@ -1657,7 +1657,6 @@
             const fullReportData = getFullReportData();
             let csvRows = [];
 
-            // --- Inputs Section ---
             csvRows.push('"Inputs"');
             csvRows.push('"Parameter","Value"');
             Object.entries(fullReportData.inputs).forEach(([key, value]) => {
@@ -1677,7 +1676,6 @@
             });
             csvRows.push('');
 
-            // --- Results Section ---
             csvRows.push('"Results"');
             csvRows.push('"Result","Value"');
             const flattenResults = (obj, prefix = '', rows = []) => {
@@ -1698,10 +1696,10 @@
 
             if (simulationChartInstance) {
                 csvRows.push('"Time Series Data"');
-                const t = translations['en'];
+                const t_en = translations['en'];
                 const { labels, datasets } = simulationChartInstance.data;
 
-                const headers = [`"${t.time_axis_label}"`, ...datasets.map(ds => `"${ds.label}"`)];
+                const headers = [`"${t_en.time_axis_label}"`, ...datasets.map(ds => `"${t_en[ds.key] || ds.label}"`)];
                 csvRows.push(headers.join(','));
 
                 const numPoints = labels.length;
