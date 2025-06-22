@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style type="text/tailwindcss">
         body {
             font-family: 'Noto Sans SC', sans-serif;
@@ -249,8 +250,13 @@
                         </div>
 
                         <div id="chart-container"
-                            class="w-full h-56 bg-gray-900 rounded-lg p-2 mt-4 border border-gray-700">
-                            <svg id="simulation-chart" width="100%" height="100%" viewBox="0 0 100 60"></svg>
+                            class="w-full h-96 bg-gray-900 rounded-lg p-2 mt-4 border-border-gray-700 relative">
+                            <canvas id="simulation-chart"></canvas>
+                            <div id="hover-label"
+                                class="absolute hidden bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg pointer-events-none z-10">
+                            </div>
+                        </div>
+                        <div id="chart-controls" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                         </div>
 
                         <div id="detailed-status-container" class="mt-6 text-left">
@@ -285,6 +291,8 @@
                                 <div id="detail-shivering" class="text-right font-mono">0 %</div>
                                 <div class="pl-4" data-t="sweating_intensity"></div>
                                 <div id="detail-sweating" class="text-right font-mono">0 %</div>
+                                <div class="pl-4" data-t="vaso_regulation_intensity"></div>
+                                <div id="detail-vasoregulation" class="text-right font-mono">0 %</div>
                             </div>
                         </div>
 
@@ -397,6 +405,26 @@
                 region_legs: "Legs",
                 region_feet: "Feet",
                 switch_lang: "切换到中文",
+                // New Chart Translations
+                chart_title: "Detailed Simulation Chart",
+                series_core_temp: "Core Temp (°C)",
+                series_skin_temp: "Skin Temp (°C)",
+                series_metabolic: "Metabolic Gain (W)",
+                series_solar: "Solar Gain (W)",
+                series_respiratory: "Resp. Loss (W)",
+                series_dry: "Dry Loss (W)",
+                series_sweat: "Sweat Loss (W)",
+                series_net: "Net Rate (W)",
+                temp_axis_label: "Temperature (°C)",
+                power_axis_label: "Power (W)",
+                time_axis_label: "Time (min)",
+                series_total_gain: "Total Gain (W)",
+                series_total_loss: "Total Loss (W)",
+                intensity_axis_label: "Intensity (%)",
+                series_shivering_intensity: "Shivering Intensity (%)",
+                series_sweating_intensity: "Sweating Intensity (%)",
+                series_vaso_regulation: "Vasoregulation (%)",
+                vaso_regulation_intensity: "Vasoregulation Intensity",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -495,6 +523,26 @@
                 region_legs: "腿部",
                 region_feet: "脚部",
                 switch_lang: "Switch to English",
+                // New Chart Translations
+                chart_title: "详细仿真曲线图",
+                series_core_temp: "核心温度 (°C)",
+                series_skin_temp: "皮肤温度 (°C)",
+                series_metabolic: "代谢产热 (W)",
+                series_solar: "太阳增益 (W)",
+                series_respiratory: "呼吸散热 (W)",
+                series_dry: "干性散热 (W)",
+                series_sweat: "出汗散热 (W)",
+                series_net: "净功率 (W)",
+                temp_axis_label: "温度 (°C)",
+                power_axis_label: "功率 (W)",
+                time_axis_label: "时间 (分钟)",
+                series_total_gain: "总增益 (W)",
+                series_total_loss: "总散失 (W)",
+                intensity_axis_label: "强度 (%)",
+                series_shivering_intensity: "战栗强度 (%)",
+                series_sweating_intensity: "出汗强度 (%)",
+                series_vaso_regulation: "血管调节强度 (%)",
+                vaso_regulation_intensity: "血管调节强度",
             }
         };
 
@@ -613,9 +661,19 @@
         let lastComfortText = '';
         let lastComfortKey = '';
         let currentEditIndex = -1;
+        let simulationChartInstance = null;
+        let chartDatasetVisibility = {};
         let dom;
 
         function setLanguage(lang) {
+            if (simulationChartInstance) {
+                simulationChartInstance.data.datasets.forEach(dataset => {
+                    if (dataset.key) {
+                        chartDatasetVisibility[dataset.key] = !dataset.hidden;
+                    }
+                });
+            }
+
             currentLang = lang.startsWith('en') ? 'en' : 'zh';
             const t = translations[currentLang];
             document.title = t.page_title;
@@ -860,25 +918,35 @@
                 return totalDryLoss;
             };
 
-            const calculateTissueInsulation = (currentCoreTemp, setPointTemp) => {
+            const calculateTissueResponse = (currentCoreTemp, setPointTemp) => {
                 const I_TISSUE_BASAL_SI = 0.027, I_TISSUE_MAX_SI = 0.054, I_TISSUE_MIN_SI = 0.009;
                 const tempDiff = currentCoreTemp - setPointTemp;
+                let insulation = I_TISSUE_BASAL_SI;
+                let constrictionFactor = 0;
+                let dilationFactor = 0;
+
                 if (tempDiff < -0.1) { // Vasoconstriction
-                    const constrictionFactor = Math.min(1, (-tempDiff - 0.1) / 0.8);
-                    return I_TISSUE_BASAL_SI + constrictionFactor * (I_TISSUE_MAX_SI - I_TISSUE_BASAL_SI);
+                    constrictionFactor = Math.min(1, (-tempDiff - 0.1) / 0.8);
+                    insulation = I_TISSUE_BASAL_SI + constrictionFactor * (I_TISSUE_MAX_SI - I_TISSUE_BASAL_SI);
                 } else if (tempDiff > 0.1) { // Vasodilation
-                    const dilationFactor = Math.min(1, (tempDiff - 0.1) / 0.8);
-                    return I_TISSUE_BASAL_SI - dilationFactor * (I_TISSUE_BASAL_SI - I_TISSUE_MIN_SI);
+                    dilationFactor = Math.min(1, (tempDiff - 0.1) / 0.8);
+                    insulation = I_TISSUE_BASAL_SI - dilationFactor * (I_TISSUE_BASAL_SI - I_TISSUE_MIN_SI);
                 }
-                return I_TISSUE_BASAL_SI;
+                return { insulation, constrictionFactor, dilationFactor };
             };
 
-            const dataPoints = [];
+            const dataHistory = {
+                time: [], coreTemp: [], skinTemp: [], heatProduction: [], solarGain: [],
+                respiratoryLoss: [], dryLoss: [], sweatLoss: [], netRate: [],
+                totalGain: [], totalLoss: [],
+                shiveringIntensity: [], sweatingIntensity: [],
+                vasoRegulationIntensity: []
+            };
+
             let currentCoreTemp = T_CORE_INITIAL;
             let vasoActive = false, shiverActive = false, sweatActive = false, dilateActive = false;
             let finalState = {};
-            let finalSkinTemp = 0;
-            const history = {
+            const historyForAvg = {
                 heatProduction: [],
                 solarGain: [],
                 respiratoryLoss: [],
@@ -888,10 +956,12 @@
             };
 
             for (let t = 0; t <= durationMins; t++) {
-                dataPoints.push({ time: t, temp: currentCoreTemp });
+                dataHistory.time.push(t);
+                dataHistory.coreTemp.push(currentCoreTemp);
 
                 // Calculate physiological regulation state
-                const tissueInsulationSI = calculateTissueInsulation(currentCoreTemp, T_CORE_INITIAL);
+                const tissueResponse = calculateTissueResponse(currentCoreTemp, T_CORE_INITIAL);
+                const tissueInsulationSI = tissueResponse.insulation;
                 vasoActive = tissueInsulationSI > 0.028; // Slightly higher than basal value
                 dilateActive = tissueInsulationSI < 0.026; // Slightly lower than basal value
 
@@ -926,33 +996,47 @@
 
                 const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
 
-                history.heatProduction.push(heatProductionWatts);
-                history.solarGain.push(solarHeatGainWatts);
-                history.respiratoryLoss.push(heatLossResp);
-                history.dryLoss.push(heatLossDry);
-                history.sweatLoss.push(sweatingHeatLoss);
-                history.netRate.push(netHeatRateWatts);
+                // Calculate and store skin temp for chart
+                let weightedSkinTempSum = 0;
+                for (const region in bodyRegions) {
+                    const regionalCloSI = (regionalClo[region] || 0) * CLO_TO_SI;
+                    const I_ext_regional = regionalCloSI + (1 / h_e);
+                    const totalInsulation_regional = tissueInsulationSI + I_ext_regional;
+                    if (totalInsulation_regional > 0) {
+                        const regionalSkinTemp = (currentCoreTemp * I_ext_regional + tempC * tissueInsulationSI) / totalInsulation_regional;
+                        weightedSkinTempSum += regionalSkinTemp * bodyRegions[region];
+                    } else {
+                        weightedSkinTempSum += tempC * bodyRegions[region];
+                    }
+                }
+                dataHistory.skinTemp.push(weightedSkinTempSum);
+
+                // Store heat balance data
+                historyForAvg.heatProduction.push(heatProductionWatts);
+                historyForAvg.solarGain.push(solarHeatGainWatts);
+                historyForAvg.respiratoryLoss.push(heatLossResp);
+                historyForAvg.dryLoss.push(heatLossDry);
+                historyForAvg.sweatLoss.push(sweatingHeatLoss);
+                historyForAvg.netRate.push(netHeatRateWatts);
+
+                dataHistory.heatProduction.push(heatProductionWatts);
+                dataHistory.solarGain.push(solarHeatGainWatts);
+                dataHistory.respiratoryLoss.push(heatLossResp);
+                dataHistory.dryLoss.push(heatLossDry);
+                dataHistory.sweatLoss.push(sweatingHeatLoss);
+                dataHistory.netRate.push(netHeatRateWatts);
+                dataHistory.totalGain.push(heatProductionWatts + solarHeatGainWatts);
+                dataHistory.totalLoss.push(heatLossResp + heatLossDry + sweatingHeatLoss);
+                dataHistory.shiveringIntensity.push((shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100);
+                dataHistory.sweatingIntensity.push((sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100);
+                const vasoRegulationIntensity = (tissueResponse.dilationFactor - tissueResponse.constrictionFactor) * 100;
+                dataHistory.vasoRegulationIntensity.push(vasoRegulationIntensity);
 
                 // Update core body temperature
                 const tempChangePerMinute = (netHeatRateWatts / bodyHeatCapacity) * 60;
                 currentCoreTemp += tempChangePerMinute;
 
                 if (t === durationMins) {
-                    // Calculate final average skin temperature
-                    let weightedSkinTempSum = 0;
-                    for (const region in bodyRegions) {
-                        const regionalCloSI = (regionalClo[region] || 0) * CLO_TO_SI;
-                        const I_ext_regional = regionalCloSI + (1 / h_e);
-                        const totalInsulation_regional = tissueInsulationSI + I_ext_regional;
-                        if (totalInsulation_regional > 0) {
-                            const regionalSkinTemp = (currentCoreTemp * I_ext_regional + tempC * tissueInsulationSI) / totalInsulation_regional;
-                            weightedSkinTempSum += regionalSkinTemp * bodyRegions[region];
-                        } else {
-                            weightedSkinTempSum += tempC * bodyRegions[region];
-                        }
-                    }
-                    finalSkinTemp = weightedSkinTempSum;
-
                     finalState = {
                         heatProductionWatts,
                         solarHeatGainWatts,
@@ -962,21 +1046,23 @@
                         netHeatRateWatts,
                         shiveringIntensity: (shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100,
                         sweatingIntensity: (sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100,
+                        vasoRegulationIntensity: vasoRegulationIntensity,
                     };
                 }
             }
 
             const finalTemp = currentCoreTemp;
+            const finalSkinTemp = dataHistory.skinTemp[dataHistory.skinTemp.length - 1];
 
             const calculateAverage = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
             lastSimulationResults = {
-                heatProductionWatts: calculateAverage(history.heatProduction),
-                solarHeatGainWatts: calculateAverage(history.solarGain),
-                heatLossResp: calculateAverage(history.respiratoryLoss),
-                heatLossDry: calculateAverage(history.dryLoss),
-                sweatingHeatLoss: calculateAverage(history.sweatLoss),
-                netRate: calculateAverage(history.netRate),
+                heatProductionWatts: calculateAverage(historyForAvg.heatProduction),
+                solarHeatGainWatts: calculateAverage(historyForAvg.solarGain),
+                heatLossResp: calculateAverage(historyForAvg.respiratoryLoss),
+                heatLossDry: calculateAverage(historyForAvg.dryLoss),
+                sweatingHeatLoss: calculateAverage(historyForAvg.sweatLoss),
+                netRate: calculateAverage(historyForAvg.netRate),
                 vasoActive: vasoActive,
                 dilateActive: dilateActive,
                 shiverActive: shiverActive,
@@ -986,7 +1072,7 @@
             const comfortScore = calculateComfortScore(finalTemp, coreTemp, finalSkinTemp, finalState, lastSimulationResults, lastSimulationResults);
 
             updatePhysiologyStatus(vasoActive, dilateActive, shiverActive, sweatActive);
-            renderChart(dataPoints, coreTemp);
+            renderChart(dataHistory);
             updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore);
             updateDetailedStatus(finalState, lastSimulationResults);
         }
@@ -1056,44 +1142,360 @@
             dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} / ${averages.netRate.toFixed(1)} W`;
             dom.detailShivering.textContent = `${finalState.shiveringIntensity.toFixed(1)} %`;
             dom.detailSweating.textContent = `${finalState.sweatingIntensity.toFixed(1)} %`;
+            dom.detailVasoregulation.textContent = `${finalState.vasoRegulationIntensity.toFixed(1)} %`;
         }
 
-        function renderChart(data, coreTemp) {
-            const svg = dom.chart;
-            svg.innerHTML = '';
-            if (data.length < 2) return;
+        function renderChart(data) {
+            const t = translations[currentLang];
+            const ctx = dom.chart.getContext('2d');
 
-            const paddingX = 8, paddingY = 5;
-            const width = 100 - paddingX * 2, height = 60 - paddingY * 2;
+            if (simulationChartInstance) {
+                simulationChartInstance.destroy();
+            }
 
-            const maxTime = Math.max(1, data[data.length - 1].time);
-            const tempValues = data.map(p => p.temp);
-            const minTemp = Math.min(...tempValues), maxTemp = Math.max(...tempValues);
-            const yRange = Math.max(Math.abs(coreTemp - minTemp), Math.abs(coreTemp - maxTemp), 0.5) * 2.2;
-            const yDomain = [coreTemp - yRange / 2, coreTemp + yRange / 2];
+            const datasets = [
+                // Temp Axis (y) - always visible
+                {
+                    key: 'series_core_temp',
+                    label: t.series_core_temp,
+                    data: data.coreTemp,
+                    borderColor: '#a78bfa',
+                    backgroundColor: '#a78bfa',
+                    yAxisID: 'y',
+                    tension: 0.2,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    hidden: false,
+                },
+                {
+                    key: 'series_skin_temp',
+                    label: t.series_skin_temp,
+                    data: data.skinTemp,
+                    borderColor: '#f97316',
+                    backgroundColor: '#f97316',
+                    yAxisID: 'y',
+                    tension: 0.2,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    hidden: false,
+                },
+                // Power Axis (y1) - toggleable
+                {
+                    key: 'series_metabolic',
+                    label: t.series_metabolic,
+                    data: data.heatProduction,
+                    borderColor: '#22c55e',
+                    backgroundColor: '#22c55e',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_solar',
+                    label: t.series_solar,
+                    data: data.solarGain,
+                    borderColor: '#eab308',
+                    backgroundColor: '#eab308',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_respiratory',
+                    label: t.series_respiratory,
+                    data: data.respiratoryLoss,
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f6',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_dry',
+                    label: t.series_dry,
+                    data: data.dryLoss,
+                    borderColor: '#6366f1',
+                    backgroundColor: '#6366f1',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_sweat',
+                    label: t.series_sweat,
+                    data: data.sweatLoss,
+                    borderColor: '#06b6d4',
+                    backgroundColor: '#06b6d4',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_net',
+                    label: t.series_net,
+                    data: data.netRate,
+                    borderColor: '#ec4899',
+                    backgroundColor: '#ec4899',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    hidden: false,
+                },
+                {
+                    key: 'series_total_gain',
+                    label: t.series_total_gain,
+                    data: data.totalGain,
+                    borderColor: '#84cc16',
+                    backgroundColor: '#84cc16',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_total_loss',
+                    label: t.series_total_loss,
+                    data: data.totalLoss,
+                    borderColor: '#ef4444',
+                    backgroundColor: '#ef4444',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_shivering_intensity',
+                    label: t.series_shivering_intensity,
+                    data: data.shiveringIntensity,
+                    borderColor: '#fde047',
+                    backgroundColor: '#fde047',
+                    yAxisID: 'y2',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_sweating_intensity',
+                    label: t.series_sweating_intensity,
+                    data: data.sweatingIntensity,
+                    borderColor: '#7dd3fc',
+                    backgroundColor: '#7dd3fc',
+                    yAxisID: 'y2',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                },
+                {
+                    key: 'series_vaso_regulation',
+                    label: t.series_vaso_regulation,
+                    data: data.vasoRegulationIntensity,
+                    yAxisID: 'y2',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
+                    segment: {
+                        borderColor: ctx => {
+                            const y = ctx.p1.parsed.y;
+                            if (y < -0.1) return '#fbbf24'; // Constriction
+                            if (y > 0.1) return '#f472b6'; // Dilation
+                            return '#9ca3af'; // Neutral
+                        }
+                    }
+                },
+            ];
 
-            const scaleX = time => (time / maxTime) * width + paddingX;
-            const scaleY = temp => height - ((temp - yDomain[0]) / (yDomain[1] - yDomain[0])) * height + paddingY;
-
-            [{ t: 35, c: '#ef4444' }, { t: coreTemp, c: '#22c55e' }, { t: 38.5, c: '#f97316' }].forEach(ref => {
-                const y = scaleY(ref.t);
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                line.setAttribute('d', `M ${paddingX} ${y} H ${width + paddingX}`);
-                line.setAttribute('stroke', ref.c); line.setAttribute('stroke-width', '0.5'); line.setAttribute('stroke-dasharray', '2');
-                svg.appendChild(line);
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                text.setAttribute('x', paddingX + 2); text.setAttribute('y', y - 1);
-                text.setAttribute('fill', ref.c); text.setAttribute('font-size', '4'); text.textContent = `${ref.t}°C`;
-                svg.appendChild(text);
+            // Apply stored visibility state
+            datasets.forEach(dataset => {
+                if (chartDatasetVisibility.hasOwnProperty(dataset.key)) {
+                    dataset.hidden = !chartDatasetVisibility[dataset.key];
+                }
             });
 
-            let pathData = `M ${scaleX(data[0].time)} ${scaleY(data[0].temp)}`;
-            for (let i = 1; i < data.length; i++) { pathData += ` L ${scaleX(data[i].time)} ${scaleY(data[i].temp)}`; }
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            line.setAttribute('d', pathData); line.setAttribute('stroke', '#a78bfa');
-            line.setAttribute('stroke-width', '2'); line.setAttribute('fill', 'none');
-            line.classList.add('chart-line');
-            svg.appendChild(line);
+            let y1Used = false;
+            let y2Used = false;
+            datasets.forEach(ds => {
+                if (!ds.hidden) {
+                    if (ds.yAxisID === 'y1') y1Used = true;
+                    if (ds.yAxisID === 'y2') y2Used = true;
+                }
+            });
+
+            // Store original border widths for hover effect
+            datasets.forEach(d => {
+                const defaultWidth = d.borderWidth === undefined ? 1 : d.borderWidth;
+                d.originalBorderWidth = defaultWidth;
+            });
+
+            simulationChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: data.time, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    animation: false,
+                    onHover: (event, chartElements, chart) => {
+                        const canvas = chart.canvas;
+                        canvas.style.cursor = 'default';
+                        dom.hoverLabel.classList.add('hidden');
+
+                        let hoveredDatasetIndex = -1;
+
+                        if (chartElements.length > 0) {
+                            let closestElement = null;
+                            let minDistance = Infinity;
+
+                            for (const element of chartElements) {
+                                const { x, y } = element.element.getCenterPoint();
+                                const distance = Math.sqrt(Math.pow(event.x - x, 2) + Math.pow(event.y - y, 2));
+                                if (distance < minDistance) {
+                                    minDistance = distance;
+                                    closestElement = element;
+                                }
+                            }
+
+                            if (closestElement && minDistance < 15) {
+                                const dataset = chart.data.datasets[closestElement.datasetIndex];
+                                if (!dataset.hidden) {
+                                    hoveredDatasetIndex = closestElement.datasetIndex;
+                                }
+                            }
+                        }
+
+                        chart.data.datasets.forEach((dataset, i) => {
+                            dataset.borderWidth = i === hoveredDatasetIndex ? (dataset.originalBorderWidth || 1) + 2 : dataset.originalBorderWidth;
+                        });
+
+                        if (hoveredDatasetIndex !== -1) {
+                            canvas.style.cursor = 'pointer';
+                            const hoveredDataset = chart.data.datasets[hoveredDatasetIndex];
+
+                            dom.hoverLabel.textContent = hoveredDataset.label;
+                            dom.hoverLabel.style.color = hoveredDataset.borderColor || hoveredDataset.backgroundColor;
+
+                            const chartRect = dom.chartContainer.getBoundingClientRect();
+                            // The 'event' object from onHover is a ChartEvent which wraps the native DOM event.
+                            // We use the native event's clientX/Y to get viewport-relative coordinates,
+                            // then subtract the container's offset to get the position inside the container.
+                            let x = event.native.clientX - chartRect.left + 10;
+                            let y = event.native.clientY - chartRect.top + 10;
+
+                            dom.hoverLabel.style.left = `${x}px`;
+                            dom.hoverLabel.style.top = `${y}px`;
+                            dom.hoverLabel.classList.remove('hidden');
+                        }
+
+                        chart.update('none');
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += context.parsed.y.toFixed(2); }
+                                    return label;
+                                }
+                            }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: t.time_axis_label, color: '#9ca3af' },
+                            grid: { color: '#374151' },
+                            ticks: { color: '#9ca3af' },
+                        },
+                        y: {
+                            type: 'linear', display: true, position: 'left',
+                            title: { display: true, text: t.temp_axis_label, color: '#a78bfa' },
+                            grid: { color: '#30363d' },
+                            ticks: { color: '#a78bfa' },
+                        },
+                        y1: {
+                            type: 'linear', display: y1Used, position: 'right',
+                            title: { display: true, text: t.power_axis_label, color: '#ec4899' },
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#ec4899' },
+                        },
+                        y2: {
+                            type: 'linear', display: y2Used, position: 'right',
+                            title: { display: true, text: t.intensity_axis_label, color: '#7dd3fc' },
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#7dd3fc' },
+                            min: -100,
+                            max: 100,
+                        },
+                    },
+                }
+            });
+
+            updateChartControls();
+        }
+
+        function updateChartControls() {
+            if (!simulationChartInstance) return;
+            const t = translations[currentLang];
+            const controlsContainer = document.getElementById('chart-controls');
+            controlsContainer.innerHTML = '';
+
+            simulationChartInstance.data.datasets.forEach((dataset, index) => {
+                const labelText = dataset.label;
+                const isHidden = dataset.hidden;
+                const color = dataset.borderColor;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = !isHidden;
+                checkbox.id = `chart-toggle-${index}`;
+                checkbox.className = 'w-4 h-4 rounded focus:ring-violet-500 bg-gray-700 border-gray-600';
+                checkbox.style.borderColor = color;
+                checkbox.style.accentColor = color;
+
+                checkbox.addEventListener('change', () => {
+                    const isVisible = checkbox.checked;
+                    const dataset = simulationChartInstance.data.datasets[index];
+                    dataset.hidden = !isVisible;
+
+                    let y1Visible = false;
+                    let y2Visible = false;
+                    simulationChartInstance.data.datasets.forEach(ds => {
+                        if (!ds.hidden) {
+                            if (ds.yAxisID === 'y1') y1Visible = true;
+                            if (ds.yAxisID === 'y2') y2Visible = true;
+                        }
+                    });
+
+                    simulationChartInstance.options.scales.y1.display = y1Visible;
+                    simulationChartInstance.options.scales.y2.display = y2Visible;
+
+                    simulationChartInstance.update();
+
+                    // Persist the state
+                    if (dataset.key) {
+                        chartDatasetVisibility[dataset.key] = isVisible;
+                    }
+                });
+
+                const label = document.createElement('label');
+                label.htmlFor = `chart-toggle-${index}`;
+                label.textContent = labelText;
+                label.className = 'ml-2 text-sm font-medium';
+                label.style.color = color;
+
+                wrapper.appendChild(checkbox);
+                wrapper.appendChild(label);
+                controlsContainer.appendChild(wrapper);
+            });
         }
 
         function updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore) {
@@ -1234,6 +1636,7 @@
                 physiological_response_intensity_percent: {
                     shivering: parseFloat(dom.detailShivering.textContent),
                     sweating: parseFloat(dom.detailSweating.textContent),
+                    vasoregulation: parseFloat(dom.detailVasoregulation.textContent),
                 }
             };
 
@@ -1350,10 +1753,15 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             dom = {
-                gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
+                gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'),
+                chartContainer: document.getElementById('chart-container'),
+                chart: document.getElementById('simulation-chart'),
+                hoverLabel: document.getElementById('hover-label'),
+                simSummary: document.getElementById('simulation-summary'),
                 physiologyStatusText: document.getElementById('physiology-status-text'),
                 coreTemp: document.getElementById('core-temp'),
                 detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
+                detailVasoregulation: document.getElementById('detail-vasoregulation'),
                 effectiveClo: document.getElementById('effective-clo'),
                 thicknessModifier: document.getElementById('thickness-modifier'),
                 copyJsonBtn: document.getElementById('copy-json-btn'),
