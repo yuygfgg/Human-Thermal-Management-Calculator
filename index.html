@@ -120,20 +120,20 @@
                             <label for="gender" class="block text-sm font-medium text-gray-300" data-t="gender"></label>
                             <select id="gender" class="input-field">
                                 <option value="male" data-t="male"></option>
-                                <option value="female" data-t="female"></option>
+                                <option value="female" data-t="female" selected></option>
                             </select>
                         </div>
                         <div>
                             <label for="height" class="block text-sm font-medium text-gray-300" data-t="height"></label>
-                            <input type="number" id="height" value="175" class="input-field">
+                            <input type="number" id="height" value="165" class="input-field">
                         </div>
                         <div>
                             <label for="weight" class="block text-sm font-medium text-gray-300" data-t="weight"></label>
-                            <input type="number" id="weight" value="70" class="input-field">
+                            <input type="number" id="weight" value="50" class="input-field">
                         </div>
                         <div>
                             <label for="age" class="block text-sm font-medium text-gray-300" data-t="age"></label>
-                            <input type="number" id="age" value="30" class="input-field">
+                            <input type="number" id="age" value="17" class="input-field">
                         </div>
                         <div>
                             <label for="core-temp" class="block text-sm font-medium text-gray-300"
@@ -162,7 +162,7 @@
                             <select id="solar-level" class="input-field">
                                 <option value="0" data-t="solar_level_no"></option>
                                 <option value="200" data-t="solar_level_overcast"></option>
-                                <option value="400" data-t="solar_level_cloudy"></option>
+                                <option value="400" data-t="solar_level_cloudy" selected></option>
                                 <option value="600" data-t="solar_level_sunny"></option>
                                 <option value="800" data-t="solar_level_intense"></option>
                             </select>
@@ -174,7 +174,7 @@
                                 <option value="1.0" data-t="activity_sit"></option>
                                 <option value="1.2" data-t="activity_office"></option>
                                 <option value="1.5" data-t="activity_light"></option>
-                                <option value="2.0" data-t="activity_walk"></option>
+                                <option value="2.6" data-t="activity_walk" selected></option>
                                 <option value="3.0" data-t="activity_brisk_walk"></option>
                                 <option value="6.0" data-t="activity_jog"></option>
                                 <option value="8.0" data-t="activity_run"></option>
@@ -184,7 +184,7 @@
                         <div>
                             <label for="duration" class="block text-sm font-medium text-gray-300"
                                 data-t="exposure_duration"></label>
-                            <input type="number" id="duration" value="60" class="input-field">
+                            <input type="number" id="duration" value="30" class="input-field">
                         </div>
                     </div>
                 </div>
@@ -198,8 +198,8 @@
                             <div class="flex space-x-2"><select id="clothing-item"
                                     class="input-field flex-grow"></select>
                                 <select id="thickness-modifier" class="input-field w-32"></select>
-                                <button id="add-clothing-btn"
-                                    class="btn-secondary" data-t="add_btn"></button></div>
+                                <button id="add-clothing-btn" class="btn-secondary" data-t="add_btn"></button>
+                            </div>
                         </div>
                         <div class="space-y-2">
                             <label class="text-sm font-medium text-gray-300" data-t="current_outfit"></label>
@@ -588,6 +588,7 @@
         let currentLang = 'zh';
         let lastSimulationResults = {};
         let lastComfortText = '';
+        let lastComfortKey = '';
 
         const dom = {
             gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'), chart: document.getElementById('simulation-chart'), simSummary: document.getElementById('simulation-summary'),
@@ -656,6 +657,7 @@
         }
 
         function populateActivitySelect() {
+            const defaultValue = dom.activity.value;
             dom.activity.innerHTML = '';
             activityLevels
                 .slice()
@@ -666,6 +668,9 @@
                     option.textContent = currentLang === 'en' ? item.name_en : item.name_zh;
                     dom.activity.appendChild(option);
                 });
+            if (defaultValue) {
+                dom.activity.value = defaultValue;
+            }
         }
 
         function getModifierText(modifierValue) {
@@ -728,11 +733,22 @@
             const regionalClo = calculateRegionalClo();
             let weightedClo = 0;
             let simpleSumClo = 0;
+
+            currentOutfit.forEach(item => {
+                const modifier = item.modifier || 1.0;
+                // Sum up the clo values for all regions covered by the item
+                for (const region in item.regionalClo) {
+                    if (item.regionalClo.hasOwnProperty(region)) {
+                        simpleSumClo += item.regionalClo[region] * modifier;
+                    }
+                }
+            });
+
             for (const regionKey in regionalClo) {
                 const areaFraction = bodyRegions[regionKey] || 0;
                 weightedClo += regionalClo[regionKey] * areaFraction;
-                simpleSumClo += regionalClo[regionKey];
             }
+
             dom.totalClo.textContent = `${simpleSumClo.toFixed(2)} Clo`;
             if (dom.effectiveClo) {
                 dom.effectiveClo.textContent = `${weightedClo.toFixed(2)} Clo`;
@@ -1101,6 +1117,7 @@
                     comfortColor = 'text-red-400';
                     comfortKey = 'comfort_distress';
                 }
+                lastComfortKey = comfortKey;
                 lastComfortText = t[comfortKey];
                 dom.comfortScore.innerHTML = `<span class="${comfortColor}">${comfortScore.toFixed(0)} / 100</span> <span class="text-base align-bottom ml-1 ${comfortColor}">(${lastComfortText})</span>`;
             }
@@ -1126,7 +1143,27 @@
         }
 
         function handleCopyJson() {
-            const t = translations[currentLang];
+            const t_en = translations['en'];
+
+            const getModifierTextEn = (modifierValue) => {
+                const epsilon = 0.001;
+                for (const key in thicknessModifiers) {
+                    if (Math.abs(thicknessModifiers[key].value - modifierValue) < epsilon) {
+                        return t_en[thicknessModifiers[key].key];
+                    }
+                }
+                return t_en.mod_normal;
+            };
+
+            const getPhysiologyResponseEn = () => {
+                const statuses = [];
+                if (lastSimulationResults.vasoActive) statuses.push(t_en.vasoconstriction);
+                if (lastSimulationResults.dilateActive) statuses.push(t_en.vasodilation);
+                if (lastSimulationResults.shiverActive) statuses.push(t_en.shivering);
+                if (lastSimulationResults.sweatActive) statuses.push(t_en.sweating);
+                return statuses.length > 0 ? statuses.join(' | ') : t_en.status_stable;
+            };
+
             const inputs = {
                 gender: dom.gender.value,
                 height_cm: parseFloat(dom.height.value),
@@ -1140,11 +1177,10 @@
                 activity_met: parseFloat(dom.activity.value),
                 duration_min: parseInt(dom.duration.value),
                 outfit: currentOutfit.map(item => ({
-                    // Use the stored itemId
-                    name: currentLang === 'en' ? item.name_en : item.name,
+                    name: item.name_en,
                     regionalClo: item.regionalClo,
                     thickness_modifier: item.modifier,
-                    thickness_modifier_text: getModifierText(item.modifier),
+                    thickness_modifier_text: getModifierTextEn(item.modifier),
                 })),
             };
 
@@ -1153,9 +1189,9 @@
                 effective_clo_weighted: parseFloat(dom.effectiveClo.textContent),
                 final_core_temp_c: parseFloat(dom.simSummary.querySelector('span').textContent),
                 final_skin_temp_c: parseFloat(dom.simSummary.querySelector('.text-orange-200').textContent.split(': ')[1]),
-                physiological_response: dom.physiologyStatusText.textContent,
+                physiological_response: getPhysiologyResponseEn(),
                 overall_comfort_score: parseFloat(dom.comfortScore.textContent.split(' / ')[0]),
-                overall_comfort_text: lastComfortText,
+                overall_comfort_text: t_en[lastComfortKey] || '',
                 detailed_heat_balance_watts: {
                     metabolic_gain: parseFloat(dom.detailMetabolic.textContent.split(' / ')[0]),
                     solar_gain: parseFloat(dom.detailSolar.textContent.split(' / ')[0]),
