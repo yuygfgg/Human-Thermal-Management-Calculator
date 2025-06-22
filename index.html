@@ -100,6 +100,7 @@
 </head>
 
 <body class="p-4 md:p-8">
+    <button id="lang-switcher" class="fixed top-4 right-4 btn-secondary z-50" data-t="switch_lang"></button>
 
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
@@ -395,6 +396,7 @@
                 region_hands: "Hands",
                 region_legs: "Legs",
                 region_feet: "Feet",
+                switch_lang: "切换到中文",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -492,6 +494,7 @@
                 region_hands: "手部",
                 region_legs: "腿部",
                 region_feet: "脚部",
+                switch_lang: "Switch to English",
             }
         };
 
@@ -1361,9 +1364,15 @@
                 editModalBody: document.getElementById('edit-modal-body'),
                 editModalCancel: document.getElementById('edit-modal-cancel'),
                 editModalSave: document.getElementById('edit-modal-save'),
+                langSwitcher: document.getElementById('lang-switcher'),
             };
 
             setLanguage(navigator.language || navigator.userLanguage);
+
+            dom.langSwitcher.addEventListener('click', () => {
+                const newLang = currentLang === 'en' ? 'zh' : 'en';
+                setLanguage(newLang);
+            });
 
             dom.addBtn.addEventListener('click', handleAddClothing);
             dom.copyJsonBtn.addEventListener('click', handleCopyJson);
