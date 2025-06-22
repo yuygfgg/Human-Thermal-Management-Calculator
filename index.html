@@ -296,8 +296,10 @@
                             </div>
                         </div>
 
-                        <div class="mt-6">
-                            <button id="copy-json-btn" class="btn-secondary w-full" data-t="copy_json_btn"></button>
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button id="import-csv-btn" class="btn-secondary w-full" data-t="import_csv_btn"></button>
+                            <button id="export-csv-btn" class="btn-secondary w-full" data-t="export_csv_btn"></button>
+                            <input type="file" id="csv-file-input" class="hidden" accept=".csv">
                         </div>
                     </div>
                 </div>
@@ -425,6 +427,8 @@
                 series_sweating_intensity: "Sweating Intensity (%)",
                 series_vaso_regulation: "Vasoregulation (%)",
                 vaso_regulation_intensity: "Vasoregulation Intensity",
+                export_csv_btn: "Export Report (CSV)",
+                import_csv_btn: "Import Report (CSV)",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -543,6 +547,8 @@
                 series_sweating_intensity: "出汗强度 (%)",
                 series_vaso_regulation: "血管调节强度 (%)",
                 vaso_regulation_intensity: "血管调节强度",
+                export_csv_btn: "导出报告 (CSV)",
+                import_csv_btn: "导入报告 (CSV)",
             }
         };
 
@@ -1567,7 +1573,7 @@
             updateOutfitUI();
         }
 
-        function handleCopyJson() {
+        function getFullReportData() {
             const t_en = translations['en'];
 
             const getModifierTextEn = (modifierValue) => {
@@ -1602,7 +1608,7 @@
                 activity_met: parseFloat(dom.activity.value),
                 duration_min: parseInt(dom.duration.value),
                 outfit: currentOutfit.map(item => ({
-                    name: item.name_en,
+                    name_en: item.name_en,
                     regionalClo: item.regionalClo,
                     thickness_modifier: item.modifier,
                     thickness_modifier_text: getModifierTextEn(item.modifier),
@@ -1639,27 +1645,186 @@
                     vasoregulation: parseFloat(dom.detailVasoregulation.textContent),
                 }
             };
+            return { inputs, results: outputs };
+        }
 
-            const fullReport = {
-                timestamp: new Date().toISOString(),
-                inputs: inputs,
-                results: outputs
-            };
+        function handleExportCsv() {
+            if (!lastSimulationResults) {
+                alert(currentLang === 'en' ? 'No simulation data to export.' : '没有可导出的仿真数据。');
+                return;
+            }
 
-            navigator.clipboard.writeText(JSON.stringify(fullReport, null, 2)).then(() => {
-                const originalText = dom.copyJsonBtn.textContent;
-                dom.copyJsonBtn.textContent = currentLang === 'en' ? 'Copied!' : '已复制!';
-                setTimeout(() => {
-                    dom.copyJsonBtn.textContent = originalText;
-                }, 2000);
-            }).catch(err => {
-                console.error('Failed to copy JSON: ', err);
-                const originalText = dom.copyJsonBtn.textContent;
-                dom.copyJsonBtn.textContent = currentLang === 'en' ? 'Error!' : '复制失败!';
-                setTimeout(() => {
-                    dom.copyJsonBtn.textContent = originalText;
-                }, 2000);
+            const fullReportData = getFullReportData();
+            let csvRows = [];
+
+            // --- Inputs Section ---
+            csvRows.push('"Inputs"');
+            csvRows.push('"Parameter","Value"');
+            Object.entries(fullReportData.inputs).forEach(([key, value]) => {
+                if (key === 'outfit') {
+                    csvRows.push(`"outfit",""`);
+                    value.forEach((item, index) => {
+                        csvRows.push(`"  ${index + 1}: name_en","${item.name_en}"`);
+                        csvRows.push(`"  ${index + 1}: thickness_modifier","${item.thickness_modifier}"`);
+                        csvRows.push(`"  ${index + 1}: thickness_modifier_text","${item.thickness_modifier_text}"`);
+                        Object.entries(item.regionalClo).forEach(([region, clo]) => {
+                            csvRows.push(`"    - ${region} Clo","${clo}"`);
+                        });
+                    });
+                } else {
+                    csvRows.push(`"${key}","${value}"`);
+                }
             });
+            csvRows.push('');
+
+            // --- Results Section ---
+            csvRows.push('"Results"');
+            csvRows.push('"Result","Value"');
+            const flattenResults = (obj, prefix = '', rows = []) => {
+                Object.entries(obj).forEach(([key, value]) => {
+                    const newKey = prefix ? `${prefix} - ${key}`.replace(/_/g, ' ') : key.replace(/_/g, ' ');
+                    if (typeof value === 'object' && value !== null) {
+                        flattenResults(value, newKey, rows);
+                    } else {
+                        rows.push(`"${newKey}","${value}"`);
+                    }
+                });
+                return rows;
+            }
+            csvRows.push(...flattenResults(fullReportData.results));
+            csvRows.push('');
+            csvRows.push('');
+
+
+            if (simulationChartInstance) {
+                csvRows.push('"Time Series Data"');
+                const t = translations['en'];
+                const { labels, datasets } = simulationChartInstance.data;
+
+                const headers = [`"${t.time_axis_label}"`, ...datasets.map(ds => `"${ds.label}"`)];
+                csvRows.push(headers.join(','));
+
+                const numPoints = labels.length;
+                if (numPoints > 0) {
+                    for (let i = 0; i < numPoints; i++) {
+                        const row = [labels[i]];
+                        datasets.forEach(ds => {
+                            const value = ds.data[i];
+                            row.push(typeof value === 'number' ? value.toFixed(4) : '');
+                        });
+                        csvRows.push(row.join(','));
+                    }
+                }
+            }
+
+
+            const csvString = csvRows.join('\n');
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const blob = new Blob([bom, csvString], { type: 'text/csv;charset=utf-8;' });
+
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `thermal_simulation_report_${new Date().toISOString().replace(/:/g, '-')}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleImportCsv() {
+            dom.csvFileInput.click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const contents = e.target.result;
+                try {
+                    parseAndApplyCsv(contents);
+                    triggerSimulation();
+                    // Reset file input to allow re-selection of the same file
+                    dom.csvFileInput.value = '';
+                } catch (error) {
+                    console.error("Failed to parse or apply CSV:", error);
+                    alert(currentLang === 'en' ? `Error importing CSV: ${error.message}` : `导入CSV出错: ${error.message}`);
+                    dom.csvFileInput.value = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function parseAndApplyCsv(csvString) {
+            const lines = csvString.split('\n').map(l => l.trim().replace(/"/g, ''));
+            const inputs = {};
+            let isInputsSection = false;
+            let currentClothingItem = null;
+            let newOutfit = [];
+
+            // Reverse lookup for clothing items by English name
+            const clothingReverseLookup = {};
+            for (const key in clothingData) {
+                clothingReverseLookup[clothingData[key].name_en.toLowerCase()] = key;
+            }
+
+            for (const line of lines) {
+                if (line === 'Inputs') {
+                    isInputsSection = true;
+                    continue;
+                }
+                if (line === 'Results' || (isInputsSection && line === '')) {
+                    isInputsSection = false;
+                    break;
+                }
+
+                if (isInputsSection && line !== 'Parameter,Value') {
+                    const parts = line.split(',');
+                    const key = parts[0];
+                    const value = parts.slice(1).join(',');
+
+                    if (key.startsWith('  ') && key.includes(':')) {
+                        // outfit item property
+                        const propKey = key.trim().split(': ')[1];
+                        if (propKey === 'name_en') {
+                            if (currentClothingItem) newOutfit.push(currentClothingItem); // save previous item
+                            const itemId = clothingReverseLookup[value.toLowerCase()];
+                            if (!itemId) throw new Error(`Clothing item "${value}" not found in presets.`);
+                            currentClothingItem = {
+                                itemId: itemId,
+                                ...JSON.parse(JSON.stringify(clothingData[itemId]))
+                            };
+                        } else if (propKey === 'thickness_modifier' && currentClothingItem) {
+                            currentClothingItem.modifier = parseFloat(value);
+                        }
+                    } else if (!key.startsWith(' ') && key !== 'outfit') {
+                        // main input parameter
+                        inputs[key] = value;
+                    }
+                }
+            }
+            if (currentClothingItem) newOutfit.push(currentClothingItem);
+
+            // Apply parsed values to UI
+            dom.gender.value = inputs.gender || 'female';
+            dom.height.value = inputs.height_cm || '165';
+            dom.weight.value = inputs.weight_kg || '50';
+            dom.age.value = inputs.age_years || '17';
+            dom.coreTemp.value = inputs.base_core_temp_c || '36.6';
+            dom.temperature.value = inputs.air_temp_c || '5';
+            dom.wind.value = inputs.wind_speed_kmh || '15';
+            dom.humidity.value = inputs.relative_humidity_percent || '50';
+            dom.solarLevel.value = inputs.solar_radiation_wm2 || '400';
+            dom.activity.value = inputs.activity_met || '2.6';
+            dom.duration.value = inputs.duration_min || '30';
+
+            currentOutfit = newOutfit;
+            updateOutfitUI();
         }
 
         function triggerSimulation() {
@@ -1773,6 +1938,9 @@
                 editModalCancel: document.getElementById('edit-modal-cancel'),
                 editModalSave: document.getElementById('edit-modal-save'),
                 langSwitcher: document.getElementById('lang-switcher'),
+                exportCsvBtn: document.getElementById('export-csv-btn'),
+                importCsvBtn: document.getElementById('import-csv-btn'),
+                csvFileInput: document.getElementById('csv-file-input'),
             };
 
             setLanguage(navigator.language || navigator.userLanguage);
@@ -1783,10 +1951,12 @@
             });
 
             dom.addBtn.addEventListener('click', handleAddClothing);
-            dom.copyJsonBtn.addEventListener('click', handleCopyJson);
+            dom.exportCsvBtn.addEventListener('click', handleExportCsv);
             dom.editModalSave.addEventListener('click', handleSaveEdit);
             dom.editModalCancel.addEventListener('click', closeEditModal);
             dom.editModalCloseBtn.addEventListener('click', closeEditModal);
+            dom.importCsvBtn.addEventListener('click', handleImportCsv);
+            dom.csvFileInput.addEventListener('change', handleFileSelect);
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
                     element.addEventListener('input', triggerSimulation);
