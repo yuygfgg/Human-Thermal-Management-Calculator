@@ -12,6 +12,9 @@ For more serious calculation, <https://github.com/CenterForTheBuiltEnvironment/c
 2.  Adjust the parameters and select your "gear".
 3.  The dashboard on the right will show the live simulation results.
 
+<img width="721" alt="截屏2025-06-22 19 48 41" src="https://github.com/user-attachments/assets/b30742ac-42cc-4d8f-8292-f67c681ab755" />
+<img width="901" alt="截屏2025-06-22 19 56 40" src="https://github.com/user-attachments/assets/211d8682-59d2-48b7-a9da-b89a3c43c414" />
+
 ### License
 
 This project is released under the terms of the **GNU Affero General Public License, version&nbsp;3.0** (AGPL-3.0) or (at your option) any later version.
