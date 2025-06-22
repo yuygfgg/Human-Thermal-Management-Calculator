@@ -291,8 +291,10 @@
                                 <div id="detail-shivering" class="text-right font-mono">0 %</div>
                                 <div class="pl-4" data-t="sweating_intensity"></div>
                                 <div id="detail-sweating" class="text-right font-mono">0 %</div>
-                                <div class="pl-4" data-t="vaso_regulation_intensity"></div>
-                                <div id="detail-vasoregulation" class="text-right font-mono">0 %</div>
+                                <div class="pl-4" data-t="vasoconstriction_intensity"></div>
+                                <div id="detail-vasoconstriction" class="text-right font-mono">0 %</div>
+                                <div class="pl-4" data-t="vasodilation_intensity"></div>
+                                <div id="detail-vasodilation" class="text-right font-mono">0 %</div>
                             </div>
                         </div>
 
@@ -425,8 +427,10 @@
                 intensity_axis_label: "Intensity (%)",
                 series_shivering_intensity: "Shivering Intensity (%)",
                 series_sweating_intensity: "Sweating Intensity (%)",
-                series_vaso_regulation: "Vasoregulation (%)",
-                vaso_regulation_intensity: "Vasoregulation Intensity",
+                vasoconstriction_intensity: "Vasoconstriction Intensity",
+                vasodilation_intensity: "Vasodilation Intensity",
+                series_vasoconstriction_intensity: "Vasoconstriction (%)",
+                series_vasodilation_intensity: "Vasodilation (%)",
                 export_csv_btn: "Export Report (CSV)",
                 import_csv_btn: "Import Report (CSV)",
             },
@@ -545,8 +549,10 @@
                 intensity_axis_label: "强度 (%)",
                 series_shivering_intensity: "战栗强度 (%)",
                 series_sweating_intensity: "出汗强度 (%)",
-                series_vaso_regulation: "血管调节强度 (%)",
-                vaso_regulation_intensity: "血管调节强度",
+                vasoconstriction_intensity: "血管收缩强度",
+                vasodilation_intensity: "血管舒张强度",
+                series_vasoconstriction_intensity: "血管收缩 (%)",
+                series_vasodilation_intensity: "血管舒张 (%)",
                 export_csv_btn: "导出报告 (CSV)",
                 import_csv_btn: "导入报告 (CSV)",
             }
@@ -946,7 +952,7 @@
                 respiratoryLoss: [], dryLoss: [], sweatLoss: [], netRate: [],
                 totalGain: [], totalLoss: [],
                 shiveringIntensity: [], sweatingIntensity: [],
-                vasoRegulationIntensity: []
+                vasoconstrictionIntensity: [], vasodilationIntensity: []
             };
 
             let currentCoreTemp = T_CORE_INITIAL;
@@ -1035,8 +1041,10 @@
                 dataHistory.totalLoss.push(heatLossResp + heatLossDry + sweatingHeatLoss);
                 dataHistory.shiveringIntensity.push((shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100);
                 dataHistory.sweatingIntensity.push((sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100);
-                const vasoRegulationIntensity = (tissueResponse.dilationFactor - tissueResponse.constrictionFactor) * 100;
-                dataHistory.vasoRegulationIntensity.push(vasoRegulationIntensity);
+                const vasoconstrictionIntensity = tissueResponse.constrictionFactor * 100;
+                const vasodilationIntensity = tissueResponse.dilationFactor * 100;
+                dataHistory.vasoconstrictionIntensity.push(vasoconstrictionIntensity);
+                dataHistory.vasodilationIntensity.push(vasodilationIntensity);
 
                 // Update core body temperature
                 const tempChangePerMinute = (netHeatRateWatts / bodyHeatCapacity) * 60;
@@ -1052,7 +1060,8 @@
                         netHeatRateWatts,
                         shiveringIntensity: (shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100,
                         sweatingIntensity: (sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100,
-                        vasoRegulationIntensity: vasoRegulationIntensity,
+                        vasoconstrictionIntensity: vasoconstrictionIntensity,
+                        vasodilationIntensity: vasodilationIntensity,
                     };
                 }
             }
@@ -1148,7 +1157,8 @@
             dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} / ${averages.netRate.toFixed(1)} W`;
             dom.detailShivering.textContent = `${finalState.shiveringIntensity.toFixed(1)} %`;
             dom.detailSweating.textContent = `${finalState.sweatingIntensity.toFixed(1)} %`;
-            dom.detailVasoregulation.textContent = `${finalState.vasoRegulationIntensity.toFixed(1)} %`;
+            dom.detailVasoconstriction.textContent = `${finalState.vasoconstrictionIntensity.toFixed(1)} %`;
+            dom.detailVasodilation.textContent = `${finalState.vasodilationIntensity.toFixed(1)} %`;
         }
 
         function renderChart(data) {
@@ -1298,21 +1308,26 @@
                     hidden: true,
                 },
                 {
-                    key: 'series_vaso_regulation',
-                    label: t.series_vaso_regulation,
-                    data: data.vasoRegulationIntensity,
+                    key: 'series_vasoconstriction_intensity',
+                    label: t.series_vasoconstriction_intensity,
+                    data: data.vasoconstrictionIntensity,
+                    borderColor: '#fbbf24',
+                    backgroundColor: '#fbbf24',
                     yAxisID: 'y2',
                     tension: 0.2,
                     pointRadius: 0,
                     hidden: true,
-                    segment: {
-                        borderColor: ctx => {
-                            const y = ctx.p1.parsed.y;
-                            if (y < -0.1) return '#fbbf24'; // Constriction
-                            if (y > 0.1) return '#f472b6'; // Dilation
-                            return '#9ca3af'; // Neutral
-                        }
-                    }
+                },
+                {
+                    key: 'series_vasodilation_intensity',
+                    label: t.series_vasodilation_intensity,
+                    data: data.vasodilationIntensity,
+                    borderColor: '#f472b6',
+                    backgroundColor: '#f472b6',
+                    yAxisID: 'y2',
+                    tension: 0.2,
+                    pointRadius: 0,
+                    hidden: true,
                 },
             ];
 
@@ -1435,7 +1450,7 @@
                             title: { display: true, text: t.intensity_axis_label, color: '#7dd3fc' },
                             grid: { drawOnChartArea: false },
                             ticks: { color: '#7dd3fc' },
-                            min: -100,
+                            min: 0,
                             max: 100,
                         },
                     },
@@ -1642,7 +1657,8 @@
                 physiological_response_intensity_percent: {
                     shivering: parseFloat(dom.detailShivering.textContent),
                     sweating: parseFloat(dom.detailSweating.textContent),
-                    vasoregulation: parseFloat(dom.detailVasoregulation.textContent),
+                    vasoconstriction: parseFloat(dom.detailVasoconstriction.textContent),
+                    vasodilation: parseFloat(dom.detailVasodilation.textContent),
                 }
             };
             return { inputs, results: outputs };
@@ -1924,7 +1940,8 @@
                 physiologyStatusText: document.getElementById('physiology-status-text'),
                 coreTemp: document.getElementById('core-temp'),
                 detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
-                detailVasoregulation: document.getElementById('detail-vasoregulation'),
+                detailVasoconstriction: document.getElementById('detail-vasoconstriction'),
+                detailVasodilation: document.getElementById('detail-vasodilation'),
                 effectiveClo: document.getElementById('effective-clo'),
                 thicknessModifier: document.getElementById('thickness-modifier'),
                 copyJsonBtn: document.getElementById('copy-json-btn'),
