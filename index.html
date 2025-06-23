@@ -656,6 +656,7 @@
             normal: { value: 1.0, key: 'mod_normal' },
             thick: { value: 1.25, key: 'mod_thick' },
         };
+        const idealCloRatios = { head: 0.2, torso: 1.0, arms: 0.7, hands: 0.15, legs: 0.8, feet: 0.25 };
 
         const calculateStdDev = (arr) => {
             if (arr.length < 2) return 0;
@@ -688,14 +689,15 @@
             const p_response_shiver_sweat = (shiverIntensity + sweatIntensity) * 0.35;
             const p_net = Math.abs(netRate) * 0.15;
 
-            // Imbalance Penalty based on deviation from an ideal distribution
+            const primaryThermalDiscomfort = p_core + p_skin + p_response_shiver_sweat;
             const normalizedCloValues = Object.keys(bodyRegions).map(region => {
                 const baseClo = regionalCloValues[region] || 0;
-                const idealCloRatios = { head: 0.2, torso: 1.0, arms: 0.7, hands: 0.15, legs: 0.8, feet: 0.25 };
                 return baseClo / (idealCloRatios[region] || 1.0);
             });
             const cloStdDev = calculateStdDev(normalizedCloValues);
-            const imbalancePenalty = cloStdDev * 40; // Tuned penalty factor
+            const rawImbalancePenalty = cloStdDev * 50; 
+            const penaltyModulationFactor = Math.max(0, 1 - (primaryThermalDiscomfort / 40));
+            const imbalancePenalty = rawImbalancePenalty * penaltyModulationFactor;
 
             let score = 100 - p_core - p_skin - p_response_shiver_sweat - p_net - imbalancePenalty;
             return Math.max(0, Math.min(100, score));
