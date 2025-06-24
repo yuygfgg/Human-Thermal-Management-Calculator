@@ -445,6 +445,7 @@
                 comfort_score_axis_label: "Comfort Score (0-100)",
                 export_csv_btn: "Export Report (CSV)",
                 import_csv_btn: "Import Report (CSV)",
+                respiratory_reduction: "Respiratory Heat Reduction (%)",
             },
             zh: {
                 page_title: "人体热量管理计算器 v0.2",
@@ -579,6 +580,7 @@
                 series_comfort_score: "舒适度分数",
                 export_csv_btn: "导出报告 (CSV)",
                 import_csv_btn: "导入报告 (CSV)",
+                respiratory_reduction: "呼吸散热减弱 (%)",
             }
         };
 
@@ -699,7 +701,7 @@
                 return baseClo / (idealCloRatios[region] || 1.0);
             });
             const cloStdDev = calculateStdDev(normalizedCloValues);
-            const rawImbalancePenalty = cloStdDev * 50; 
+            const rawImbalancePenalty = cloStdDev * 50;
             const penaltyModulationFactor = Math.max(0, 1 - (primaryThermalDiscomfort / 40));
             const imbalancePenalty = rawImbalancePenalty * penaltyModulationFactor;
 
@@ -1985,8 +1987,17 @@
                 dom.editModalBody.appendChild(inputGroup);
             });
 
+            const respModifierDiv = document.createElement('div');
+            respModifierDiv.className = 'grid grid-cols-2 items-center gap-4 mt-2 pt-2 border-t border-gray-700';
+            const respModifierValue = (item.respiratoryModifier || 0) * 100;
+            respModifierDiv.innerHTML = `
+                <label for="edit-respiratory-modifier" class="text-sm font-medium text-gray-300 justify-self-start">${t.respiratory_reduction}</label>
+                <input type="number" id="edit-respiratory-modifier" value="${respModifierValue.toFixed(0)}" step="1" min="0" max="100" class="input-field">
+            `;
+            dom.editModalBody.appendChild(respModifierDiv);
+
             const thicknessDiv = document.createElement('div');
-            thicknessDiv.className = 'grid grid-cols-2 items-center gap-4 mt-4 pt-4 border-t border-gray-700';
+            thicknessDiv.className = 'grid grid-cols-2 items-center gap-4 mt-2 pt-2 border-t border-gray-700';
             thicknessDiv.innerHTML = `<label for="edit-thickness-modifier" class="text-sm font-medium text-gray-300 justify-self-start">${t.thickness_modifier}</label>`;
             const select = document.createElement('select');
             select.id = 'edit-thickness-modifier';
@@ -2033,6 +2044,16 @@
                     delete item.regionalClo[regionKey];
                 }
             });
+
+            const respInput = document.getElementById('edit-respiratory-modifier');
+            if (respInput) {
+                const respValue = parseFloat(respInput.value);
+                if (!isNaN(respValue) && respValue > 0) {
+                    item.respiratoryModifier = respValue / 100.0;
+                } else {
+                    delete item.respiratoryModifier;
+                }
+            }
 
             const thicknessSelect = document.getElementById('edit-thickness-modifier');
             if (thicknessSelect) {
