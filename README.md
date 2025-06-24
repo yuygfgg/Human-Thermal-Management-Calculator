@@ -2,7 +2,7 @@
 
 **Scientifically prove you're not cold (or hot).**
 
-An fun web-based tool for simulating human thermal comfort. It models core temperature and physiological responses based on environment, activity, and highly customizable clothing setups.
+An fun web-based tool for simulating human thermal comfort. It models core and skin temperature and physiological responses based on environment, activity, and highly customizable clothing setups.
 
 Key features include a real-time dashboard with detailed multi-series charts, a comprehensive comfort score, and the ability to import/export full simulation reports as CSV files.
 
