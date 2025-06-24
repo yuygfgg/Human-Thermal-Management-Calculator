@@ -1,19 +1,19 @@
 ## Human Thermal Management Calculator
 
-**Scientifically tell your mom you're not cold.**
+**Scientifically prove you're not cold (or hot).**
 
-A fun web-based tool to simulate human core body temperature changes based on environment, activity, and clothing choices.
+An fun web-based tool for simulating human thermal comfort. It models core temperature and physiological responses based on environment, activity, and highly customizable clothing setups.
+
+Key features include a real-time dashboard with detailed multi-series charts, a comprehensive comfort score, and the ability to import/export full simulation reports as CSV files.
 
 For more serious calculation, <https://github.com/CenterForTheBuiltEnvironment/comfort_tool> should be used.
 
 ### How to Use
 
 1.  Open <https://calc.yuygfgg.xyz/> in your browser.
-2.  Adjust the parameters and select your "gear".
-3.  The dashboard on the right will show the live simulation results.
-
-<img width="721" alt="截屏2025-06-22 19 48 41" src="https://github.com/user-attachments/assets/b30742ac-42cc-4d8f-8292-f67c681ab755" />
-<img width="901" alt="截屏2025-06-22 19 56 40" src="https://github.com/user-attachments/assets/211d8682-59d2-48b7-a9da-b89a3c43c414" />
+2.  Adjust parameters and build your outfit.
+3.  Analyze the real-time simulation dashboard for detailed insights.
+4.  Import or export full simulation reports via CSV.
 
 ### License
 
