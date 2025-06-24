@@ -598,6 +598,7 @@
             "mid_sweater": { name: "毛衣", name_en: "Sweater", regionalClo: { torso: 0.37, arms: 0.24 }, category: "cat_mid" },
             "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
             "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", regionalClo: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
+            "mid_fleece_vest": { name: "抓绒背心", name_en: "Fleece Vest", regionalClo: { torso: 0.30 }, category: "cat_mid" },
             "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
             "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", regionalClo: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
             "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", regionalClo: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
@@ -640,16 +641,19 @@
             "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", regionalClo: { feet: 0.05, legs: 0.10 }, category: "cat_acc" },
             "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", regionalClo: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
             "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", regionalClo: { feet: 0.10 }, category: "cat_acc" },
+            "acc_sandals": { name: "凉鞋", name_en: "Sandals", regionalClo: { feet: 0.01 }, category: "cat_acc" },
             "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", regionalClo: { feet: 0.05 }, category: "cat_acc" },
             "acc_boots": { name: "靴子", name_en: "Boots", regionalClo: { feet: 0.12, legs: 0.06 }, category: "cat_acc" },
             "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", regionalClo: { feet: 0.25, legs: 0.10 }, category: "cat_acc" },
+            "acc_leather_gloves": { name: "皮手套", name_en: "Leather Gloves", regionalClo: { hands: 0.15 }, category: "cat_acc" },
             "acc_gloves": { name: "手套", name_en: "Gloves", regionalClo: { hands: 0.25 }, category: "cat_acc" },
             "acc_mittens": { name: "连指厚手套", name_en: "Mittens", regionalClo: { hands: 0.40 }, category: "cat_acc" },
-            "acc_scarf": { name: "围巾", name_en: "Scarf", regionalClo: { torso: 0.20 }, category: "cat_acc" },
-            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", regionalClo: { torso: 0.18 }, category: "cat_acc" },
+            "acc_scarf": { name: "围巾", name_en: "Scarf", regionalClo: { torso: 0.20 }, respiratoryModifier: 0.25, category: "cat_acc" },
+            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", regionalClo: { torso: 0.18 }, respiratoryModifier: 0.30, category: "cat_acc" },
             "acc_beanie": { name: "毛线帽", name_en: "Beanie", regionalClo: { head: 0.25 }, category: "cat_acc" },
             "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", regionalClo: { head: 0.10 }, category: "cat_acc" },
-            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", regionalClo: { head: 0.40 }, category: "cat_acc" },
+            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", regionalClo: { head: 0.40 }, respiratoryModifier: 0.50, category: "cat_acc" },
+            "acc_face_mask": { name: "口罩", name_en: "Face Mask", regionalClo: { head: 0.02 }, respiratoryModifier: 0.4, category: "cat_acc" },
         };
         const thicknessModifiers = {
             thin: { value: 0.75, key: 'mod_thin' },
@@ -929,6 +933,9 @@
             if (isNaN(heightCm) || isNaN(weightKg) || isNaN(age) || isNaN(coreTemp) || heightCm <= 0 || weightKg <= 0 || age <= 0) return;
 
             const clothingClo = calculateTotalClothingClo();
+            const totalRespiratoryModifier = currentOutfit.reduce((max, item) => {
+                return item.respiratoryModifier && item.respiratoryModifier > max ? item.respiratoryModifier : max;
+            }, 0);
             const initialMetValue = parseFloat(dom.activity.value);
             const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), solarRad = parseFloat(dom.solarLevel.value), durationMins = parseInt(dom.duration.value);
             const windMs = windKmh / 3.6;
@@ -975,13 +982,14 @@
             const h_r = 4.7; // Typical radiative heat transfer coefficient (W/(m²·K))
             const h_e = h_c + h_r; // Overall external heat transfer coefficient
 
-            // New two-node model helper functions
-            const calculateRespiratoryLoss = (metabolicWatts, airTempC, rh) => {
+            // Two-node model helper functions
+            const calculateRespiratoryLoss = (metabolicWatts, airTempC, rh, respiratoryModifier = 0) => {
                 const p_sat_air_kpa = 0.61121 * Math.exp((18.678 - airTempC / 234.5) * (airTempC / (257.14 + airTempC)));
                 const p_vapor_air_kpa = rh * p_sat_air_kpa;
                 const loss_sensible = 0.0014 * metabolicWatts * (34 - airTempC);
                 const loss_latent = 0.0173 * metabolicWatts * Math.max(0, 6.266 - p_vapor_air_kpa);
-                return loss_sensible + loss_latent;
+                const totalLoss = loss_sensible + loss_latent;
+                return totalLoss * (1 - respiratoryModifier);
             };
 
             const calculateDryHeatLoss = (coreT, airT, tissueIns, regionalCloValues, he) => {
@@ -1074,7 +1082,7 @@
                 const currentMetValue = initialMetValue + shiveringMetIncrease;
                 const heatProductionWatts = 58.2 * BSA * currentMetValue;
 
-                const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100);
+                const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100, totalRespiratoryModifier);
                 const netMetabolicGain = heatProductionWatts - heatLossResp;
 
                 const solarHeatGainWatts = solarRad * BSA * SOLAR_EFFECTIVE_FACTOR;
