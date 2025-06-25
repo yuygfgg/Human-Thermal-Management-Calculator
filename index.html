@@ -768,6 +768,7 @@
                     activity: dom.activity.value,
                     duration: dom.duration.value,
                     outfit: currentOutfit,
+                    currentLang: currentLang,
                 };
                 sessionStorage.setItem('thermalCalculatorState', JSON.stringify(inputsToSave));
             } catch (e) {
@@ -777,10 +778,10 @@
 
         function restoreInputsFromSessionStorage() {
             try {
-                const savedState = sessionStorage.getItem('thermalCalculatorState');
-                if (!savedState) return;
+                const savedStateJSON = sessionStorage.getItem('thermalCalculatorState');
+                if (!savedStateJSON) return null;
 
-                const inputs = JSON.parse(savedState);
+                const inputs = JSON.parse(savedStateJSON);
 
                 if (inputs.gender) dom.gender.value = inputs.gender;
                 if (inputs.height) dom.height.value = inputs.height;
@@ -797,8 +798,10 @@
                 if (inputs.outfit && Array.isArray(inputs.outfit)) {
                     currentOutfit = inputs.outfit;
                 }
+                return inputs.currentLang || null;
             } catch (e) {
                 console.error("Could not restore state from sessionStorage:", e);
+                return null;
             }
         }
 
@@ -2145,12 +2148,13 @@
                 csvFileInput: document.getElementById('csv-file-input'),
             };
 
-            restoreInputsFromSessionStorage();
-            setLanguage(navigator.language || navigator.userLanguage);
+            const savedLang = restoreInputsFromSessionStorage();
+            setLanguage(savedLang || navigator.language || navigator.userLanguage);
 
             dom.langSwitcher.addEventListener('click', () => {
                 const newLang = currentLang === 'en' ? 'zh' : 'en';
                 setLanguage(newLang);
+                saveInputsToSessionStorage();
             });
 
             dom.addBtn.addEventListener('click', handleAddClothing);
@@ -2175,8 +2179,8 @@
 
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
-                restoreInputsFromSessionStorage();
-                updateOutfitUI(); // This triggers a simulation
+                const savedLang = restoreInputsFromSessionStorage();
+                setLanguage(savedLang || currentLang);
             }
         });
     </script>
