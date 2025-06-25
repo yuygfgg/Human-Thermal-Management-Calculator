@@ -753,6 +753,55 @@
         let chartDatasetVisibility = {};
         let dom;
 
+        function saveInputsToSessionStorage() {
+            try {
+                const inputsToSave = {
+                    gender: dom.gender.value,
+                    height: dom.height.value,
+                    weight: dom.weight.value,
+                    age: dom.age.value,
+                    coreTemp: dom.coreTemp.value,
+                    temperature: dom.temperature.value,
+                    wind: dom.wind.value,
+                    humidity: dom.humidity.value,
+                    solarLevel: dom.solarLevel.value,
+                    activity: dom.activity.value,
+                    duration: dom.duration.value,
+                    outfit: currentOutfit,
+                };
+                sessionStorage.setItem('thermalCalculatorState', JSON.stringify(inputsToSave));
+            } catch (e) {
+                console.error("Could not save state to sessionStorage:", e);
+            }
+        }
+
+        function restoreInputsFromSessionStorage() {
+            try {
+                const savedState = sessionStorage.getItem('thermalCalculatorState');
+                if (!savedState) return;
+
+                const inputs = JSON.parse(savedState);
+
+                if (inputs.gender) dom.gender.value = inputs.gender;
+                if (inputs.height) dom.height.value = inputs.height;
+                if (inputs.weight) dom.weight.value = inputs.weight;
+                if (inputs.age) dom.age.value = inputs.age;
+                if (inputs.coreTemp) dom.coreTemp.value = inputs.coreTemp;
+                if (inputs.temperature) dom.temperature.value = inputs.temperature;
+                if (inputs.wind) dom.wind.value = inputs.wind;
+                if (inputs.humidity) dom.humidity.value = inputs.humidity;
+                if (inputs.solarLevel) dom.solarLevel.value = inputs.solarLevel;
+                if (inputs.activity) dom.activity.value = inputs.activity;
+                if (inputs.duration) dom.duration.value = inputs.duration;
+                
+                if (inputs.outfit && Array.isArray(inputs.outfit)) {
+                    currentOutfit = inputs.outfit;
+                }
+            } catch (e) {
+                console.error("Could not restore state from sessionStorage:", e);
+            }
+        }
+
         function setLanguage(lang) {
             if (simulationChartInstance) {
                 simulationChartInstance.data.datasets.forEach(dataset => {
@@ -1682,11 +1731,13 @@
                 ...JSON.parse(JSON.stringify(clothingData[key]))
             };
             currentOutfit.push(item);
+            saveInputsToSessionStorage();
             updateOutfitUI();
         }
 
         function handleRemoveClothing(event) {
             currentOutfit.splice(parseInt(event.target.dataset.index, 10), 1);
+            saveInputsToSessionStorage();
             updateOutfitUI();
         }
 
@@ -1877,6 +1928,7 @@
                 const contents = e.target.result;
                 try {
                     parseAndApplyCsv(contents);
+                    saveInputsToSessionStorage();
                     triggerSimulation();
                     // Reset file input to allow re-selection of the same file
                     dom.csvFileInput.value = '';
@@ -2060,6 +2112,7 @@
                 item.modifier = parseFloat(thicknessSelect.value);
             }
 
+            saveInputsToSessionStorage();
             closeEditModal();
             updateOutfitUI();
         }
@@ -2092,6 +2145,7 @@
                 csvFileInput: document.getElementById('csv-file-input'),
             };
 
+            restoreInputsFromSessionStorage();
             setLanguage(navigator.language || navigator.userLanguage);
 
             dom.langSwitcher.addEventListener('click', () => {
@@ -2108,11 +2162,22 @@
             dom.csvFileInput.addEventListener('change', handleFileSelect);
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
-                    element.addEventListener('input', triggerSimulation);
-                    element.addEventListener('change', triggerSimulation);
+                    const eventHandler = () => {
+                        triggerSimulation();
+                        saveInputsToSessionStorage();
+                    };
+                    element.addEventListener('input', eventHandler);
+                    element.addEventListener('change', eventHandler);
                 }
             });
             // Initial Run is triggered by setLanguage
+        });
+
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                restoreInputsFromSessionStorage();
+                updateOutfitUI(); // This triggers a simulation
+            }
         });
     </script>
 
