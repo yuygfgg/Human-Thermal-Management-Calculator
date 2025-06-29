@@ -204,7 +204,10 @@
                             </div>
                         </div>
                         <div class="space-y-2">
-                            <label class="text-sm font-medium text-gray-300" data-t="current_outfit"></label>
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm font-medium text-gray-300" data-t="current_outfit"></label>
+                                <button id="clear-outfit-btn" class="text-xs font-bold text-red-500 hover:text-red-400 transition-colors" data-t="clear_outfit_btn"></button>
+                            </div>
                             <div id="current-outfit-list"
                                 class="space-y-2 min-h-[8rem] p-2 rounded-md bg-gray-900 border border-gray-700">
                                 <p id="empty-outfit-msg" class="text-gray-500 italic" data-t="empty_outfit"></p>
@@ -368,6 +371,7 @@
                 shivering_intensity: "Shivering Intensity",
                 sweating_intensity: "Sweating Intensity",
                 remove_btn: "Remove",
+                clear_outfit_btn: "Clear Outfit",
                 vasoconstriction: 'Vasoconstriction',
                 vasodilation: 'Vasodilation',
                 shivering: 'Shivering',
@@ -503,6 +507,7 @@
                 shivering_intensity: "战栗强度",
                 sweating_intensity: "出汗强度",
                 remove_btn: "移除",
+                clear_outfit_btn: "清空穿搭",
                 vasoconstriction: '血管收缩',
                 vasodilation: '血管舒张',
                 shivering: '战栗产热',
@@ -1744,6 +1749,14 @@
             updateOutfitUI();
         }
 
+        function handleClearOutfit() {
+            if (currentOutfit.length > 0) {
+                currentOutfit = [];
+                saveInputsToSessionStorage();
+                updateOutfitUI();
+            }
+        }
+
         function getFullReportData() {
             const t_en = translations['en'];
 
@@ -2136,6 +2149,7 @@
                 thicknessModifier: document.getElementById('thickness-modifier'),
                 copyJsonBtn: document.getElementById('copy-json-btn'),
                 comfortScore: document.getElementById('comfort-score'),
+                clearOutfitBtn: document.getElementById('clear-outfit-btn'),
                 editModal: document.getElementById('edit-modal'),
                 editModalCloseBtn: document.getElementById('edit-modal-close-btn'),
                 editModalItemName: document.getElementById('edit-modal-item-name'),
@@ -2158,6 +2172,7 @@
             });
 
             dom.addBtn.addEventListener('click', handleAddClothing);
+            dom.clearOutfitBtn.addEventListener('click', handleClearOutfit);
             dom.exportCsvBtn.addEventListener('click', handleExportCsv);
             dom.editModalSave.addEventListener('click', handleSaveEdit);
             dom.editModalCancel.addEventListener('click', closeEditModal);
