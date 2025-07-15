@@ -11,10 +11,43 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style type="text/tailwindcss">
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #111827;
+            --border-primary: #30363d;
+            --border-secondary: #374151;
+            --text-primary: #c9d1d9;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --card-shadow-hover: rgba(139, 92, 246, 0.1);
+            --card-border-hover: #8b5cf6;
+            --input-focus-ring: rgba(139, 92, 246, 0.5);
+            --bg-chart: #111827;
+            --bg-outfit-list: #111827;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f9fafb;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f3f4f6;
+            --border-primary: #e5e7eb;
+            --border-secondary: #d1d5db;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-tertiary: #6b7280;
+            --card-shadow-hover: rgba(139, 92, 246, 0.15);
+            --card-border-hover: #8b5cf6;
+            --input-focus-ring: rgba(139, 92, 246, 0.5);
+            --bg-chart: #f9fafb;
+            --bg-outfit-list: #f9fafb;
+        }
+
         body {
             font-family: 'Noto Sans SC', sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         .transition-all {
@@ -22,53 +55,61 @@
         }
 
         .card {
-            background-color: #161b22;
-            border: 1px solid #30363d;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .card-hover:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
-            border-color: #8b5cf6;
+            box-shadow: 0 10px 15px -3px var(--card-shadow-hover), 0 4px 6px -2px var(--card-shadow-hover);
+            border-color: var(--card-border-hover);
         }
 
         .input-field {
-            margin-top: 0.25rem; /* mt-1 */
-            display: block; /* block */
-            width: 100%; /* w-full */
-            background-color: #111827; /* bg-gray-900 */
-            border: 1px solid #374151; /* border-gray-700 */
-            border-radius: 0.375rem; /* rounded-md */
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); /* shadow-sm */
-            color: #ffffff; /* text-white */
+            margin-top: 0.25rem;
+            display: block;
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 0.375rem;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
         }
 
         .input-field::placeholder {
-            color: #6b7280; /* placeholder-gray-500 */
+            color: var(--text-tertiary);
         }
 
         .input-field:focus {
             outline: none;
-            border-color: #8b5cf6; /* focus:border-violet-500 */
-            box-shadow: 0 0 0 3px rgb(139 92 246 / 0.5); /* focus:ring-violet-500 */
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px var(--input-focus-ring);
         }
 
         .btn-secondary {
-            padding: 0.5rem 1rem; /* px-4 py-2 */
-            background-color: #1f2937; /* bg-gray-800 */
-            color: #ffffff; /* text-white */
-            font-weight: 600; /* font-semibold */
-            border-radius: 0.375rem; /* rounded-md */
-            transition: all 0.2s; /* transition-all */
+            padding: 0.5rem 1rem;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-weight: 600;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            border: 1px solid var(--border-secondary);
         }
 
         .btn-secondary:hover {
-            background-color: #374151; /* hover:bg-gray-700 */
+            background-color: var(--border-secondary);
+            border-color: var(--border-primary);
+        }
+
+        [data-theme="light"] .btn-secondary:hover {
+            background-color: #e5e7eb;
         }
 
         .btn-secondary:focus {
-            outline: none; /* focus:outline-none */
-            box-shadow: 0 0 0 2px #8b5cf6, 0 0 0 4px #111827; /* ring */
+            outline: none;
+            box-shadow: 0 0 0 2px #8b5cf6, 0 0 0 4px var(--bg-primary);
         }
 
         .chart-line {
@@ -76,38 +117,170 @@
         }
 
         .status-indicator {
-            padding: 0.25rem 0.75rem; /* px-3 py-1 */
-            font-size: 0.75rem; /* text-xs */
-            font-weight: 500; /* font-medium */
-            border-radius: 9999px; /* rounded-full */
-            transition: background-color 0.2s, color 0.2s; /* transition-colors */
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 9999px;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         .status-inactive {
-            background-color: #374151; /* bg-gray-700 */
-            color: #9ca3af; /* text-gray-400 */
+            background-color: var(--border-secondary);
+            color: var(--text-secondary);
         }
 
         .status-active {
-            background-color: #eab308; /* bg-yellow-500 */
-            color: #000000; /* text-black */
+            background-color: #eab308;
+            color: #000000;
         }
 
         .status-sweating {
-            background-color: #3b82f6; /* bg-blue-500 */
-            color: #ffffff; /* text-white */
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        /* Chart container specific styling */
+        #chart-container {
+            background-color: var(--bg-chart) !important;
+            border-color: var(--border-secondary) !important;
+        }
+
+        /* Outfit list specific styling */
+        #current-outfit-list {
+            background-color: var(--bg-outfit-list) !important;
+            border-color: var(--border-secondary) !important;
+        }
+
+        /* Theme toggle button styling */
+        .theme-toggle-btn {
+            padding: 0.5rem;
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+            border: 1px solid var(--border-secondary);
+        }
+
+        .theme-toggle-btn:hover {
+            background-color: var(--border-secondary);
+            border-color: var(--border-primary);
+        }
+
+        /* Icon transitions */
+        .theme-icon {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .theme-icon-hidden {
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        /* Adjust text colors for specific elements */
+        .text-gray-300 {
+            color: var(--text-secondary);
+        }
+
+        .text-gray-400 {
+            color: var(--text-tertiary);
+        }
+
+        .text-gray-500 {
+            color: var(--text-tertiary);
+        }
+
+        /* Adjust bg colors for outfit items */
+        #current-outfit-list .bg-gray-800 {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+        }
+
+        /* Modal background overlay adjustment */
+        #edit-modal {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+
+        [data-theme="light"] #edit-modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        /* Hover label styling */
+        #hover-label {
+            background-color: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-secondary);
+        }
+
+        /* Adjustments for colored text that should remain colored in light mode */
+        [data-theme="light"] .text-white {
+            color: var(--text-primary);
+        }
+
+        /* Additional style fixes for light mode */
+        [data-theme="light"] #simulation-summary .text-white {
+            color: #ffffff !important; /* Keep white text on colored backgrounds */
+        }
+
+        /* Edit modal content in light mode */
+        [data-theme="light"] #edit-modal .card {
+            background-color: var(--bg-secondary);
+            border-color: var(--border-primary);
+        }
+
+        /* Ensure colored backgrounds keep their text colors */
+        .bg-red-800, .bg-red-600, .bg-blue-600, .bg-cyan-500,
+        .bg-green-600, .bg-yellow-500, .bg-orange-500 {
+            color: #ffffff !important;
+        }
+        
+        .bg-yellow-500 {
+            color: #000000 !important;
+        }
+
+        /* Light mode text visibility on colored elements */
+        [data-theme="light"] .text-violet-300 { color: #8b5cf6; }
+        [data-theme="light"] .text-sky-300 { color: #0891b2; }
+        [data-theme="light"] .text-green-400 { color: #16a34a; }
+        [data-theme="light"] .text-yellow-400 { color: #ca8a04; }
+        [data-theme="light"] .text-red-400 { color: #dc2626; }
+        [data-theme="light"] .text-blue-400 { color: #2563eb; }
+        [data-theme="light"] .text-orange-200 { color: #ea580c; }
+        [data-theme="light"] .text-orange-300 { color: #ea580c; }
+        [data-theme="light"] .text-yellow-300 { color: #ca8a04; }
+
+        .version-badge {
+            background-color: #7c3aed; /* bg-violet-600 */
+            color: #ffffff;
+        }
+        [data-theme="light"] .version-badge {
+            background-color: transparent;
+            color: #7c3aed; /* text-violet-600 */
+            border: 1px solid #8b5cf6; /* border-violet-500 */
         }
     </style>
 </head>
 
 <body class="p-4 md:p-8">
-    <button id="lang-switcher" class="fixed top-4 right-4 btn-secondary z-50" data-t="switch_lang"></button>
+    <div class="fixed top-4 right-4 z-50 flex items-center space-x-2">
+        <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
+            <svg id="theme-light-icon" class="w-5 h-5 theme-icon theme-icon-hidden" fill="currentColor"
+                viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                    fill-rule="evenodd" clip-rule="evenodd"></path>
+            </svg>
+            <svg id="theme-dark-icon" class="w-5 h-5 theme-icon" fill="currentColor" viewBox="0 0 20 20"
+                xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+        </button>
+        <button id="lang-switcher" class="btn-secondary" data-t="switch_lang"></button>
+    </div>
 
     <div class="max-w-7xl mx-auto">
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-white"><span data-t="main_title"></span> <span
-                    class="text-base bg-violet-600 text-white rounded-full px-3 py-1 align-middle"
-                    data-t="version_badge"></span>
+            <h1 class="text-3xl md:text-4xl font-bold"><span data-t="main_title"></span> <span
+                    class="version-badge text-base rounded-full px-3 py-1 align-middle" data-t="version_badge"></span>
             </h1>
         </header>
 
@@ -210,8 +383,7 @@
                                     class="text-xs font-bold text-red-500 hover:text-red-400 transition-colors"
                                     data-t="clear_outfit_btn"></button>
                             </div>
-                            <div id="current-outfit-list"
-                                class="space-y-2 min-h-[8rem] p-2 rounded-md bg-gray-900 border border-gray-700">
+                            <div id="current-outfit-list" class="space-y-2 min-h-[8rem] p-2 rounded-md border">
                                 <p id="empty-outfit-msg" class="text-gray-500 italic" data-t="empty_outfit"></p>
                             </div>
                         </div>
@@ -254,11 +426,10 @@
                             </div>
                         </div>
 
-                        <div id="chart-container"
-                            class="w-full h-96 bg-gray-900 rounded-lg p-2 mt-4 border-border-gray-700 relative">
+                        <div id="chart-container" class="w-full h-96 rounded-lg p-2 mt-4 border relative">
                             <canvas id="simulation-chart"></canvas>
                             <div id="hover-label"
-                                class="absolute hidden bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg pointer-events-none z-10">
+                                class="absolute hidden text-white text-xs font-bold px-2 py-1 rounded-md shadow-lg pointer-events-none z-10">
                             </div>
                         </div>
                         <div id="chart-controls" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
@@ -612,6 +783,7 @@
             "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", regionalClo: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
             "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", regionalClo: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
             // Outer Layer
+            "outer_skin_jacket": { name: "皮肤衣", name_en: "Sun Protection Hoodie", regionalClo: { head: 0.05, torso: 0.15, arms: 0.10 }, category: "cat_outer" },
             "outer_cardigan": { name: "开衫", name_en: "Cardigan", regionalClo: { torso: 0.25, arms: 0.16 }, category: "cat_outer" },
             "outer_blazer": { name: "西装外套", name_en: "Blazer", regionalClo: { torso: 0.35, arms: 0.22 }, category: "cat_outer" },
             "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", regionalClo: { torso: 0.28, arms: 0.18 }, category: "cat_outer" },
@@ -620,6 +792,7 @@
             "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", regionalClo: { head: 0.10, torso: 0.30, arms: 0.20 }, category: "cat_outer" },
             "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", regionalClo: { torso: 0.55 }, category: "cat_outer" },
             "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", regionalClo: { torso: 0.80, arms: 0.50, legs: 0.15 }, category: "cat_outer" },
+            "outer_duffle_coat": { name: "牛角扣大衣", name_en: "Duffle Coat", regionalClo: { head: 0.15, torso: 0.70, arms: 0.45, legs: 0.10 }, category: "cat_outer" },
             "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", regionalClo: { head: 0.15, torso: 1.20, arms: 0.80 }, category: "cat_outer" },
             "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", regionalClo: { head: 0.20, torso: 0.60, arms: 0.45 }, category: "cat_outer" },
             "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", regionalClo: { head: 0.30, torso: 2.00, arms: 1.20, legs: 0.20 }, category: "cat_outer" },
@@ -758,7 +931,82 @@
         let currentEditIndex = -1;
         let simulationChartInstance = null;
         let chartDatasetVisibility = {};
+        let currentTheme = 'dark';
+        let userHasSetTheme = false;
         let dom;
+
+        function detectSystemTheme() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                return 'light';
+            }
+            return 'dark';
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // Update theme toggle icon
+            if (dom.themeLightIcon && dom.themeDarkIcon) {
+                if (theme === 'light') {
+                    dom.themeLightIcon.classList.remove('theme-icon-hidden');
+                    dom.themeDarkIcon.classList.add('theme-icon-hidden');
+                } else {
+                    dom.themeLightIcon.classList.add('theme-icon-hidden');
+                    dom.themeDarkIcon.classList.remove('theme-icon-hidden');
+                }
+            }
+
+            // Update chart theme if it exists
+            if (simulationChartInstance) {
+                updateChartTheme();
+            }
+
+            // This will now update the summary colors and other UI elements
+            updateUIFromResults();
+        }
+
+        function toggleTheme() {
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            userHasSetTheme = true;
+            saveInputsToSessionStorage();
+        }
+
+        function updateChartTheme() {
+            if (!simulationChartInstance) return;
+
+            const isDark = currentTheme === 'dark';
+            const textColor = isDark ? '#9ca3af' : '#4b5563';
+            const gridColor = isDark ? '#374151' : '#e5e7eb';
+            const chartAreaGridColor = isDark ? '#30363d' : '#e5e7eb';
+
+            // Update chart options
+            simulationChartInstance.options.scales.x.title.color = textColor;
+            simulationChartInstance.options.scales.x.grid.color = gridColor;
+            simulationChartInstance.options.scales.x.ticks.color = textColor;
+
+            simulationChartInstance.options.scales.y.title.color = isDark ? '#a78bfa' : '#8b5cf6';
+            simulationChartInstance.options.scales.y.grid.color = chartAreaGridColor;
+            simulationChartInstance.options.scales.y.ticks.color = isDark ? '#a78bfa' : '#8b5cf6';
+
+            if (simulationChartInstance.options.scales.y1) {
+                simulationChartInstance.options.scales.y1.title.color = isDark ? '#ec4899' : '#db2777';
+                simulationChartInstance.options.scales.y1.ticks.color = isDark ? '#ec4899' : '#db2777';
+            }
+
+            if (simulationChartInstance.options.scales.y2) {
+                simulationChartInstance.options.scales.y2.title.color = isDark ? '#7dd3fc' : '#0891b2';
+                simulationChartInstance.options.scales.y2.ticks.color = isDark ? '#7dd3fc' : '#0891b2';
+            }
+
+            if (simulationChartInstance.options.scales.y3) {
+                simulationChartInstance.options.scales.y3.title.color = isDark ? '#facc15' : '#ca8a04';
+                simulationChartInstance.options.scales.y3.ticks.color = isDark ? '#facc15' : '#ca8a04';
+            }
+
+            simulationChartInstance.update();
+        }
 
         function saveInputsToSessionStorage() {
             try {
@@ -776,6 +1024,7 @@
                     duration: dom.duration.value,
                     outfit: currentOutfit,
                     currentLang: currentLang,
+                    currentTheme: currentTheme,
                 };
                 sessionStorage.setItem('thermalCalculatorState', JSON.stringify(inputsToSave));
             } catch (e) {
@@ -805,7 +1054,11 @@
                 if (inputs.outfit && Array.isArray(inputs.outfit)) {
                     currentOutfit = inputs.outfit;
                 }
-                return inputs.currentLang || null;
+
+                return {
+                    lang: inputs.currentLang || null,
+                    theme: inputs.currentTheme || null
+                };
             } catch (e) {
                 console.error("Could not restore state from sessionStorage:", e);
                 return null;
@@ -917,7 +1170,7 @@
                     const name = currentLang === 'en' ? item.name_en : item.name;
                     const modifierText = getModifierText(item.modifier);
                     const itemDiv = document.createElement('div');
-                    itemDiv.className = 'flex justify-between items-center bg-gray-800 p-2 rounded-md animate-fade-in';
+                    itemDiv.className = 'flex justify-between items-center p-2 rounded-md animate-fade-in';
                     itemDiv.innerHTML = `
                         <div>
                             <span>${name} <span class="text-xs text-gray-400">(${modifierText})</span></span>
@@ -1235,23 +1488,46 @@
 
             const calculateAverage = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
 
-            lastSimulationResults = {
+            const averageResults = {
                 heatProductionWatts: calculateAverage(historyForAvg.heatProduction),
                 solarHeatGainWatts: calculateAverage(historyForAvg.solarGain),
                 heatLossResp: calculateAverage(historyForAvg.respiratoryLoss),
                 heatLossDry: calculateAverage(historyForAvg.dryLoss),
                 sweatingHeatLoss: calculateAverage(historyForAvg.sweatLoss),
                 netRate: calculateAverage(historyForAvg.netRate),
-                vasoActive: vasoActive,
-                dilateActive: dilateActive,
-                shiverActive: shiverActive,
-                sweatActive: sweatActive,
             };
+
+            lastSimulationResults = {
+                finalTemp,
+                coreTemp,
+                finalSkinTemp,
+                comfortScore,
+                vasoActive,
+                dilateActive,
+                shiverActive,
+                sweatActive,
+                finalState,
+                averages: averageResults,
+                dataHistory,
+            };
+
+            updateUIFromResults();
+        }
+
+        function updateUIFromResults() {
+            if (Object.keys(lastSimulationResults).length === 0) return;
+
+            const {
+                vasoActive, dilateActive, shiverActive, sweatActive,
+                dataHistory,
+                finalTemp, coreTemp, finalSkinTemp, comfortScore,
+                finalState, averages
+            } = lastSimulationResults;
 
             updatePhysiologyStatus(vasoActive, dilateActive, shiverActive, sweatActive);
             renderChart(dataHistory);
             updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore);
-            updateDetailedStatus(finalState, lastSimulationResults);
+            updateDetailedStatus(finalState, averages);
         }
 
         function getIntensityKey(type, percentage) {
@@ -1579,35 +1855,35 @@
                     },
                     scales: {
                         x: {
-                            title: { display: true, text: t.time_axis_label, color: '#9ca3af' },
-                            grid: { color: '#374151' },
-                            ticks: { color: '#9ca3af' },
+                            title: { display: true, text: t.time_axis_label, color: currentTheme === 'dark' ? '#9ca3af' : '#4b5563' },
+                            grid: { color: currentTheme === 'dark' ? '#374151' : '#e5e7eb' },
+                            ticks: { color: currentTheme === 'dark' ? '#9ca3af' : '#4b5563' },
                         },
                         y: {
                             type: 'linear', display: true, position: 'left',
-                            title: { display: true, text: t.temp_axis_label, color: '#a78bfa' },
-                            grid: { color: '#30363d' },
-                            ticks: { color: '#a78bfa' },
+                            title: { display: true, text: t.temp_axis_label, color: currentTheme === 'dark' ? '#a78bfa' : '#8b5cf6' },
+                            grid: { color: currentTheme === 'dark' ? '#30363d' : '#e5e7eb' },
+                            ticks: { color: currentTheme === 'dark' ? '#a78bfa' : '#8b5cf6' },
                         },
                         y1: {
                             type: 'linear', display: y1Used, position: 'right',
-                            title: { display: true, text: t.power_axis_label, color: '#ec4899' },
+                            title: { display: true, text: t.power_axis_label, color: currentTheme === 'dark' ? '#ec4899' : '#db2777' },
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#ec4899' },
+                            ticks: { color: currentTheme === 'dark' ? '#ec4899' : '#db2777' },
                         },
                         y2: {
                             type: 'linear', display: y2Used, position: 'right',
-                            title: { display: true, text: t.intensity_axis_label, color: '#7dd3fc' },
+                            title: { display: true, text: t.intensity_axis_label, color: currentTheme === 'dark' ? '#7dd3fc' : '#0891b2' },
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#7dd3fc' },
+                            ticks: { color: currentTheme === 'dark' ? '#7dd3fc' : '#0891b2' },
                             min: 0,
                             max: 100,
                         },
                         y3: {
                             type: 'linear', display: y3Used, position: 'right',
-                            title: { display: true, text: t.comfort_score_axis_label, color: '#facc15' },
+                            title: { display: true, text: t.comfort_score_axis_label, color: currentTheme === 'dark' ? '#facc15' : '#ca8a04' },
                             grid: { drawOnChartArea: false },
-                            ticks: { color: '#facc15' },
+                            ticks: { color: currentTheme === 'dark' ? '#facc15' : '#ca8a04' },
                             min: 0,
                             max: 100,
                         },
@@ -1682,31 +1958,44 @@
 
         function updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore) {
             const t = translations[currentLang];
-            let summaryText, bgColor, textColor;
+            let summaryText, colorClass;
             const finalTempStr = finalTemp.toFixed(2);
             const tempDiff = finalTemp - coreTemp;
 
             if (finalTemp < 35.0) {
-                summaryText = t.summary_hypothermia; bgColor = 'bg-red-800'; textColor = 'text-white';
+                summaryText = t.summary_hypothermia; colorClass = 'red-800';
             } else if (tempDiff < -0.8) {
-                summaryText = t.summary_very_cold; bgColor = 'bg-red-600'; textColor = 'text-white';
+                summaryText = t.summary_very_cold; colorClass = 'red-600';
             } else if (tempDiff < -0.4) {
-                summaryText = t.summary_cold; bgColor = 'bg-blue-600'; textColor = 'text-white';
+                summaryText = t.summary_cold; colorClass = 'blue-600';
             } else if (tempDiff < -0.1) {
-                summaryText = t.summary_cool; bgColor = 'bg-cyan-500'; textColor = 'text-white';
+                summaryText = t.summary_cool; colorClass = 'cyan-500';
             } else if (tempDiff <= 0.2) {
-                summaryText = t.summary_comfortable; bgColor = 'bg-green-600'; textColor = 'text-white';
+                summaryText = t.summary_comfortable; colorClass = 'green-600';
             } else if (tempDiff <= 0.5) {
-                summaryText = t.summary_warm; bgColor = 'bg-yellow-500'; textColor = 'text-black';
+                summaryText = t.summary_warm; colorClass = 'yellow-500';
             } else if (finalTemp <= 38.5) {
-                summaryText = t.summary_hot; bgColor = 'bg-orange-500'; textColor = 'text-white';
+                summaryText = t.summary_hot; colorClass = 'orange-500';
             } else {
-                summaryText = t.summary_overheating; bgColor = 'bg-red-600'; textColor = 'text-white';
+                summaryText = t.summary_overheating; colorClass = 'red-600';
             }
 
             const skinTempText = `<div class="text-base font-medium mt-1 text-orange-200">${t.final_skin_temp}: ${finalSkinTemp.toFixed(2)}°C</div>`;
             dom.simSummary.innerHTML = `<div><span class="text-4xl">${finalTempStr}°C</span><span class="text-lg ml-3 font-medium">${summaryText}</span></div>${skinTempText}`;
-            dom.simSummary.className = `font-bold p-3 rounded-lg h-24 flex flex-col items-center justify-center text-center transition-all duration-500 ${bgColor} ${textColor}`;
+
+            let styleClasses = '';
+            if (currentTheme === 'light') {
+                let textColor = `text-${colorClass}`;
+                if (colorClass === 'yellow-500') {
+                    textColor = 'text-yellow-600'; // Darker shade for light background
+                }
+                styleClasses = `border-2 border-${colorClass} ${textColor}`;
+            } else { // dark mode
+                const darkThemeTextColor = colorClass === 'yellow-500' ? 'text-black' : 'text-white';
+                styleClasses = `bg-${colorClass} ${darkThemeTextColor}`;
+            }
+            dom.simSummary.className = `font-bold p-3 rounded-lg h-24 flex flex-col items-center justify-center text-center transition-all duration-500 ${styleClasses}`;
+
 
             // Update comfort score display
             if (dom.comfortScore) {
@@ -2162,16 +2451,32 @@
                 exportCsvBtn: document.getElementById('export-csv-btn'),
                 importCsvBtn: document.getElementById('import-csv-btn'),
                 csvFileInput: document.getElementById('csv-file-input'),
+                themeLightIcon: document.getElementById('theme-light-icon'),
+                themeDarkIcon: document.getElementById('theme-dark-icon'),
+                themeToggle: document.getElementById('theme-toggle'),
             };
 
-            const savedLang = restoreInputsFromSessionStorage();
+            const savedState = restoreInputsFromSessionStorage();
+
+            // Initialize theme
+            let initialTheme = savedState?.theme || detectSystemTheme();
+            if (savedState?.theme) {
+                userHasSetTheme = true;
+            }
+            setTheme(initialTheme);
+
+            // Initialize language
+            const savedLang = savedState?.lang;
             setLanguage(savedLang || navigator.language || navigator.userLanguage);
 
+            // Event listeners
             dom.langSwitcher.addEventListener('click', () => {
                 const newLang = currentLang === 'en' ? 'zh' : 'en';
                 setLanguage(newLang);
                 saveInputsToSessionStorage();
             });
+
+            dom.themeToggle.addEventListener('click', toggleTheme);
 
             dom.addBtn.addEventListener('click', handleAddClothing);
             dom.clearOutfitBtn.addEventListener('click', handleClearOutfit);
@@ -2192,12 +2497,24 @@
                 }
             });
             // Initial Run is triggered by setLanguage
+
+            // Listen for system theme changes
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+                    // Only update if user hasn't manually set a theme
+                    if (!userHasSetTheme) {
+                        setTheme(e.matches ? 'light' : 'dark');
+                        saveInputsToSessionStorage();
+                    }
+                });
+            }
         });
 
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
-                const savedLang = restoreInputsFromSessionStorage();
-                setLanguage(savedLang || currentLang);
+                const savedState = restoreInputsFromSessionStorage();
+                setLanguage(savedState?.lang || currentLang);
+                setTheme(savedState?.theme || currentTheme);
             }
         });
     </script>
