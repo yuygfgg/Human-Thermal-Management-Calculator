@@ -2078,6 +2078,15 @@
                 return statuses.length > 0 ? statuses.join(' | ') : t_en.status_stable;
             };
 
+            const solarValue = dom.solarLevel.value;
+            const solarOption = dom.solarLevel.querySelector(`option[value="${solarValue}"]`);
+            const solarTextKey = solarOption ? solarOption.dataset.t : '';
+            const solarTextEn = solarTextKey ? t_en[solarTextKey] : '';
+
+            const activityValue = parseFloat(dom.activity.value);
+            const activityLevel = activityLevels.find(level => Math.abs(level.met - activityValue) < 0.01);
+            const activityTextEn = activityLevel ? activityLevel.name_en : '';
+
             const inputs = {
                 gender: dom.gender.value,
                 height_cm: parseFloat(dom.height.value),
@@ -2088,7 +2097,9 @@
                 wind_speed_kmh: parseFloat(dom.wind.value),
                 relative_humidity_percent: parseFloat(dom.humidity.value),
                 solar_radiation_wm2: parseFloat(dom.solarLevel.value),
+                solar_radiation_text_en: solarTextEn,
                 activity_met: parseFloat(dom.activity.value),
+                activity_text_en: activityTextEn,
                 duration_min: parseInt(dom.duration.value),
                 outfit: currentOutfit.map(item => ({
                     name_en: item.name_en,
@@ -2309,7 +2320,7 @@
             dom.humidity.value = inputs.relative_humidity_percent || '50';
             dom.solarLevel.value = inputs.solar_radiation_wm2 || '400';
             dom.activity.value = inputs.activity_met || '2.6';
-            dom.duration.value = inputs.duration_min || '30';
+            dom.duration.value = inputs.duration_min || '30'; 
 
             currentOutfit = newOutfit;
             updateOutfitUI();
