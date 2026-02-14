@@ -332,6 +332,12 @@
                                 class="input-field">
                         </div>
                         <div>
+                            <label for="medium-k" class="block text-sm font-medium text-gray-300"
+                                data-t="medium_thermal_conductivity"></label>
+                            <input type="number" id="medium-k" value="0.026" step="0.001" min="0.001"
+                                class="input-field">
+                        </div>
+                        <div>
                             <label for="solar-level" class="block text-sm font-medium text-gray-300"
                                 data-t="solar_radiation"></label>
                             <select id="solar-level" class="input-field">
@@ -578,6 +584,7 @@
                 temperature: "Air Temperature (°C)",
                 wind_speed: "Wind Speed (km/h)",
                 humidity: "Relative Humidity (%)",
+                medium_thermal_conductivity: "Medium Thermal Conductivity (W/m·K)",
                 solar_radiation: "Solar Level",
                 solar_level_no: "Shade / No Sun (0 W/m²)",
                 solar_level_overcast: "Overcast (~200 W/m²)",
@@ -731,6 +738,7 @@
                 temperature: "气温 (°C)",
                 wind_speed: "风速 (km/h)",
                 humidity: "相对湿度 (%)",
+                medium_thermal_conductivity: "介质导热率 (W/m·K)",
                 solar_radiation: "太阳辐射水平",
                 solar_level_no: "阴影/无阳光 (0 W/m²)",
                 solar_level_overcast: "阴天 (~200 W/m²)",
@@ -999,8 +1007,8 @@
         };
         // From https://comfort.cbe.berkeley.edu/
         const activityLevels = [
-            { met: 0.7, name_en: "Sleeping", name_zh: "睡眠", posture: "lying" },
-            { met: 0.8, name_en: "Reclining", name_zh: "斜靠休息", posture: "lying" },
+            { met: 1.0, name_en: "Sleeping", name_zh: "睡眠", posture: "lying" }, // TODO: met should be 0.7, but use 1.0 to work around backend issue.
+            { met: 1.0, name_en: "Reclining", name_zh: "斜靠休息", posture: "lying" }, // TODO: met should be 0.8, but use 1.0 to work around backend issue.
             { met: 1.0, name_en: "Seated, quiet", name_zh: "静坐", posture: "sitting" },
             { met: 1.0, name_en: "Reading, seated", name_zh: "坐着阅读", posture: "sitting" },
             { met: 1.0, name_en: "Writing", name_zh: "写作", posture: "sitting" },
@@ -1143,6 +1151,7 @@
                     temperature: dom.temperature.value,
                     wind: dom.wind.value,
                     humidity: dom.humidity.value,
+                    mediumK: dom.mediumK.value,
                     solarLevel: dom.solarLevel.value,
                     activity: dom.activity.value,
                     duration: dom.duration.value,
@@ -1171,6 +1180,7 @@
                 if (inputs.temperature) dom.temperature.value = inputs.temperature;
                 if (inputs.wind) dom.wind.value = inputs.wind;
                 if (inputs.humidity) dom.humidity.value = inputs.humidity;
+                if (inputs.mediumK) dom.mediumK.value = inputs.mediumK;
                 if (inputs.solarLevel) dom.solarLevel.value = inputs.solarLevel;
                 if (inputs.activity) dom.activity.value = inputs.activity;
                 if (inputs.duration) dom.duration.value = inputs.duration;
@@ -1382,6 +1392,8 @@
             const initialMetValue = parseFloat(dom.activity.value);
             const tempC = parseFloat(dom.temperature.value), windKmh = parseFloat(dom.wind.value), humidityPercent = parseFloat(dom.humidity.value), solarRad = parseFloat(dom.solarLevel.value), durationMins = parseInt(dom.duration.value);
             const windMs = windKmh / 3.6;
+            const mediumK = parseFloat(dom.mediumK.value);
+            const mediumThermalConductivity = isFinite(mediumK) && mediumK > 0 ? mediumK : 0.026;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
             const regionalClo = calculateRegionalClo();
@@ -1400,6 +1412,7 @@
                         air_temp_c: tempC,
                         wind_speed_ms: windMs,
                         rh_percent: humidityPercent,
+                        medium_thermal_conductivity_w_mk: mediumThermalConductivity,
                         solar_radiation_wm2: solarRad,
                         activity_met: initialMetValue,
                         duration_min: durationMins,
@@ -2302,6 +2315,7 @@
                 air_temp_c: parseFloat(dom.temperature.value),
                 wind_speed_kmh: parseFloat(dom.wind.value),
                 relative_humidity_percent: parseFloat(dom.humidity.value),
+                medium_thermal_conductivity_w_mk: parseFloat(dom.mediumK.value),
                 solar_radiation_wm2: parseFloat(dom.solarLevel.value),
                 solar_radiation_text_en: solarTextEn,
                 activity_met: parseFloat(dom.activity.value),
@@ -2363,6 +2377,15 @@
             const fullReportData = getFullReportData();
             let csvRows = [];
 
+            // Minimal CSV cell escaping for our generated values.
+            const csvCell = (v) => {
+                if (v === null || v === undefined) return '';
+                let s = String(v);
+                if (!s) return '';
+                if (s.includes('"')) s = s.replace(/"/g, '""');
+                return /[",\n\r]/.test(s) ? `"${s}"` : s;
+            };
+
             csvRows.push('"Inputs"');
             csvRows.push('"Parameter","Value"');
             Object.entries(fullReportData.inputs).forEach(([key, value]) => {
@@ -2418,6 +2441,47 @@
                         });
                         csvRows.push(row.join(','));
                     }
+                }
+            }
+
+
+            // Raw JOS-3 dump (all keys + all timesteps), as returned by the backend.
+            const jos3Raw = lastSimulationResults?.jos3?.results;
+            if (jos3Raw && typeof jos3Raw === 'object' && Object.keys(jos3Raw).length) {
+                csvRows.push('');
+                csvRows.push('');
+                csvRows.push('"JOS3 Raw Data"');
+                if (lastSimulationResults?.jos3?.version) {
+                    csvRows.push(`"jos3_version",${csvCell(lastSimulationResults.jos3.version)}`);
+                }
+
+                const rawKeys = Object.keys(jos3Raw);
+                const keys = [
+                    ...(rawKeys.includes('ModTime') ? ['ModTime'] : []),
+                    ...rawKeys.filter(k => k !== 'ModTime').sort((a, b) => a.localeCompare(b)),
+                ];
+
+                csvRows.push(keys.map(k => csvCell(k)).join(','));
+
+                const n = (() => {
+                    const mod = Array.isArray(jos3Raw.ModTime) ? jos3Raw.ModTime.length : 0;
+                    if (mod) return mod;
+                    let best = 0;
+                    keys.forEach(k => {
+                        const arr = jos3Raw[k];
+                        if (Array.isArray(arr) && arr.length > best) best = arr.length;
+                    });
+                    return best;
+                })();
+
+                for (let i = 0; i < n; i++) {
+                    const row = keys.map(k => {
+                        const arr = jos3Raw[k];
+                        const v = Array.isArray(arr) ? arr[i] : '';
+                        if (typeof v === 'number') return Number.isFinite(v) ? String(v) : '';
+                        return csvCell(v);
+                    });
+                    csvRows.push(row.join(','));
                 }
             }
 
@@ -2485,7 +2549,7 @@
                 }
                 if (line === 'Results' || (isInputsSection && line === '')) {
                     isInputsSection = false;
-                    break;
+                    continue;
                 }
 
                 if (isInputsSection && line !== 'Parameter,Value') {
@@ -2524,12 +2588,66 @@
             dom.temperature.value = inputs.air_temp_c || '5';
             dom.wind.value = inputs.wind_speed_kmh || '15';
             dom.humidity.value = inputs.relative_humidity_percent || '50';
+            dom.mediumK.value = inputs.medium_thermal_conductivity_w_mk || '0.026';
             dom.solarLevel.value = inputs.solar_radiation_wm2 || '400';
             dom.activity.value = inputs.activity_met || '2.6';
             dom.duration.value = inputs.duration_min || '30';
 
             currentOutfit = newOutfit;
             updateOutfitUI();
+
+            // Optional: restore raw JOS-3 results from the exported CSV for offline viewing.
+            // This does not block a new simulation from running; it just provides data immediately.
+            const parseJos3FromCsv = (sanitizedLines) => {
+                const start = sanitizedLines.findIndex(l => l === 'JOS3 Raw Data');
+                if (start < 0) return null;
+
+                let i = start + 1;
+                while (i < sanitizedLines.length && sanitizedLines[i] === '') i++;
+
+                let version = null;
+                if (i < sanitizedLines.length && sanitizedLines[i].startsWith('jos3_version,')) {
+                    version = sanitizedLines[i].split(',').slice(1).join(',').trim() || null;
+                    i++;
+                }
+                while (i < sanitizedLines.length && sanitizedLines[i] === '') i++;
+
+                const header = sanitizedLines[i];
+                if (!header) return null;
+                const keys = header.split(',').map(s => s.trim()).filter(Boolean);
+                if (!keys.length) return null;
+
+                const out = {};
+                keys.forEach(k => { out[k] = []; });
+
+                const sectionStops = new Set(['Inputs', 'Results', 'Time Series Data', 'JOS3 Raw Data']);
+                const toNumOrNull = (s) => {
+                    const t = (s || '').trim();
+                    if (!t) return null;
+                    const n = Number(t);
+                    return Number.isFinite(n) ? n : null;
+                };
+
+                for (i = i + 1; i < sanitizedLines.length; i++) {
+                    const line = sanitizedLines[i];
+                    if (!line) break;
+                    if (sectionStops.has(line)) break;
+                    const parts = line.split(',');
+                    for (let c = 0; c < keys.length; c++) {
+                        out[keys[c]].push(toNumOrNull(parts[c]));
+                    }
+                }
+                return { version, results: out };
+            };
+
+            const importedJos3 = parseJos3FromCsv(lines);
+            if (importedJos3?.results && Object.keys(importedJos3.results).length) {
+                if (!lastSimulationResults || typeof lastSimulationResults !== 'object') lastSimulationResults = {};
+                if (!lastSimulationResults.jos3 || typeof lastSimulationResults.jos3 !== 'object') lastSimulationResults.jos3 = {};
+                lastSimulationResults.jos3.results = importedJos3.results;
+                if (importedJos3.version) lastSimulationResults.jos3.version = importedJos3.version;
+                updateJos3Panel();
+            }
         }
 
         function triggerSimulation() {
@@ -2643,7 +2761,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             dom = {
-                gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'),
+                gender: document.getElementById('gender'), height: document.getElementById('height'), weight: document.getElementById('weight'), age: document.getElementById('age'), temperature: document.getElementById('temperature'), wind: document.getElementById('wind'), humidity: document.getElementById('humidity'), mediumK: document.getElementById('medium-k'), solarLevel: document.getElementById('solar-level'), activity: document.getElementById('activity'), duration: document.getElementById('duration'), clothingItem: document.getElementById('clothing-item'), addBtn: document.getElementById('add-clothing-btn'), outfitList: document.getElementById('current-outfit-list'), emptyMsg: document.getElementById('empty-outfit-msg'), totalClo: document.getElementById('total-clo'), simContainer: document.getElementById('simulation-results-container'),
                 chartContainer: document.getElementById('chart-container'),
                 chart: document.getElementById('simulation-chart'),
                 hoverLabel: document.getElementById('hover-label'),

@@ -4,13 +4,17 @@ import argparse
 import json
 import math
 import os
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, List, Tuple
 
+
 import numpy as np
 
 import jos3
+
+_thread_context = threading.local()
 
 
 BODY_REGIONS = {
@@ -34,14 +38,13 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 HR_W_M2K = 4.7
 SOLAR_EFFECTIVE_FACTOR = 0.12  # Converts W/m2 solar -> effective absorbed W/m2 on body
 
+# Reference thermal conductivity of air near room temperature [W/m.K].
+# Used to scale convective heat transfer when simulating other media.
+AIR_THERMAL_CONDUCTIVITY_W_MK = 0.026
+
 # Tikuisis et al. cold-water exercise studies suggest full shivering suppression
 # around extra metabolic heat production ~250–300 W. Default: 270 W.
 DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W = 270.0
-
-
-import threading
-
-_thread_context = threading.local()
 
 
 def _patch_jos3_shivering() -> None:
@@ -57,7 +60,6 @@ def _patch_jos3_shivering() -> None:
     def shivering_with_activity(*args: Any, **kwargs: Any) -> Any:
         mshiv = orig(*args, **kwargs)
         scale = getattr(_thread_context, "shivering_scale", 1.0)
-        print(scale)
 
         return np.asarray(mshiv, dtype=float) * scale
 
@@ -66,6 +68,32 @@ def _patch_jos3_shivering() -> None:
 
 
 _patch_jos3_shivering()
+
+def _patch_jos3_fixed_hc() -> None:
+    """Scale JOS-3 convective coefficient by a per-request medium conductivity factor.
+
+    Note: JOS-3 normalizes local hc values via thermoregulation.fixed_hc(), so
+    scaling conv_coef() itself would be cancelled out. We scale after fixed_hc().
+    """
+    try:
+        import jos3.thermoregulation as threg
+    except Exception:
+        return
+    if getattr(threg, "_htm_fixed_hc_patched", False):
+        return
+
+    orig = threg.fixed_hc
+
+    def fixed_hc_with_medium(*args: Any, **kwargs: Any) -> Any:
+        hc = orig(*args, **kwargs)
+        scale = getattr(_thread_context, "medium_hc_scale", 1.0)
+        return np.asarray(hc, dtype=float) * float(scale)
+
+    threg.fixed_hc = fixed_hc_with_medium
+    threg._htm_fixed_hc_patched = True
+
+
+_patch_jos3_fixed_hc()
 
 
 def _clamp(x: float, lo: float, hi: float) -> float:
@@ -221,6 +249,21 @@ def _sanitize_jos3_results(d: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
+    # Default medium is air. Let callers override the medium thermal conductivity,
+    # which we approximate by scaling the convective coefficient h ~ k.
+    medium_k_raw = payload.get(
+        "medium_thermal_conductivity_w_mk",
+        payload.get("medium_k_w_mk", AIR_THERMAL_CONDUCTIVITY_W_MK),
+    )
+    try:
+        medium_k_w_mk = float(medium_k_raw)
+    except (TypeError, ValueError):
+        medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
+    if not math.isfinite(medium_k_w_mk) or medium_k_w_mk <= 0.0:
+        medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
+    medium_hc_scale = medium_k_w_mk / AIR_THERMAL_CONDUCTIVITY_W_MK
+    _thread_context.medium_hc_scale = float(medium_hc_scale)
+
     sex = payload.get("sex") or payload.get("gender") or "female"
     sex = "female" if str(sex).lower().startswith("f") else "male"
 
@@ -328,13 +371,12 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
             current_tcb = base_core_temp_c
 
         # 2) Hypothermia suppression factor based on core temp.
-        if current_tcb >= 34.0:
+        if 34.0 <= current_tcb <= 37.2:
             f_temp = 1.0
-        elif current_tcb <= 30.0:
-            f_temp = 0.0
+        elif current_tcb < 34.0:
+            f_temp = max(0.0, (current_tcb - 30.0) / (34.0 - 30.0))
         else:
-            # Linear decay between 30..34C.
-            f_temp = (current_tcb - 30.0) / (34.0 - 30.0)
+            f_temp = max(0.0, 1.0 - (current_tcb - 37.2) / (38.0 - 37.2))
 
         # 3) Fatigue factor from cumulative shivering energy.
         # JOS3 segmented output keys like MshivHead, MshivChest, etc.
@@ -350,7 +392,6 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         # 4) Inject combined suppression into options for the runtime shivering patch.
         _thread_context.shivering_scale = float(shiv_scale * f_temp * f_fatigue)
-        print(float(shiv_scale * f_temp * f_fatigue))
 
         # 5) Advance simulation by 1 minute.
         model.simulate(times=1, dtime=60)
@@ -475,6 +516,8 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "shivering_activity_threshold_w", DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
             )
         ),
+        "mediumThermalConductivityWmK": float(medium_k_w_mk),
+        "mediumHcScale": float(medium_hc_scale),
     }
 
     averages = {
