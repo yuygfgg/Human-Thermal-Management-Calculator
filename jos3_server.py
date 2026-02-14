@@ -55,12 +55,21 @@ def _patch_jos3_shivering() -> None:
         options = kwargs.get("options", None)
         if options is None and args and isinstance(args[-1], dict):
             options = args[-1]
-        scale = 1.0
+
+        activity_scale = 1.0
+        hypothermia_scale = 1.0  # Hypothermia/fatigue suppression scale (0..1)
+
         try:
             if isinstance(options, dict):
-                scale = float(options.get("shivering_activity_scale", 1.0))
+                activity_scale = float(options.get("shivering_activity_scale", 1.0))
+                hypothermia_scale = float(
+                    options.get("shivering_hypothermia_scale", 1.0)
+                )
         except Exception:
-            scale = 1.0
+            pass
+
+        # Total shivering scale = activity suppression * hypothermia/fatigue suppression.
+        scale = activity_scale * hypothermia_scale
 
         if scale >= 0.999:
             return mshiv
@@ -332,8 +341,53 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     model.options["shivering_activity_threshold_w"] = float(m_threshold_w)
 
     # Run in 60s steps to match the UI timeline.
+    # Step forward minute-by-minute so duration can reduce shivering capacity
+    # via hypothermia and fatigue suppression.
+    #
+    # Define a maximum "shivering energy budget".
+    # 800 kcal ~= 3,347,200 J.
+    max_shivering_energy_j = 3.3e6
+    consumed_shivering_energy_j = 0.0
+
     duration_min = max(0, min(duration_min, 24 * 60))
-    model.simulate(times=duration_min, dtime=60)
+
+    for _step in range(duration_min):
+        # 1) Get current core temperature (Tcb: central blood pool temperature).
+        # If this is the first step, fall back to the requested baseline.
+        current_results = model.dict_results()
+        if "Tcb" in current_results and len(current_results["Tcb"]) > 0:
+            current_tcb = float(current_results["Tcb"][-1])
+        else:
+            current_tcb = base_core_temp_c
+
+        # 2) Hypothermia suppression factor based on core temp.
+        if current_tcb >= 34.0:
+            f_temp = 1.0
+        elif current_tcb <= 30.0:
+            f_temp = 0.0
+        else:
+            # Linear decay between 30..34C.
+            f_temp = (current_tcb - 30.0) / (34.0 - 30.0)
+
+        # 3) Fatigue factor from cumulative shivering energy.
+        if "Mshiv" in current_results and len(current_results["Mshiv"]) > 0:
+            # Mshiv is per-segment; sum to total shivering power (W) for last minute.
+            last_mshiv_w = float(np.sum(np.asarray(current_results["Mshiv"][-1])))
+        else:
+            last_mshiv_w = 0.0
+
+        consumed_shivering_energy_j += last_mshiv_w * 60.0
+        f_fatigue = max(
+            0.0, 1.0 - (consumed_shivering_energy_j / max_shivering_energy_j)
+        )
+
+        # 4) Inject combined suppression into options for the runtime shivering patch.
+        model.options["shivering_hypothermia_scale"] = float(f_temp * f_fatigue)
+
+        # 5) Advance simulation by 1 minute.
+        model.simulate(times=1, dtime=60)
+
+    # After stepping, fetch complete results.
     d = model.dict_results()
 
     raw_results = _sanitize_jos3_results(d)
