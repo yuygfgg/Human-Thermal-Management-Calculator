@@ -39,10 +39,14 @@ SOLAR_EFFECTIVE_FACTOR = 0.12  # Converts W/m2 solar -> effective absorbed W/m2 
 DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W = 270.0
 
 
+import threading
+
+_thread_context = threading.local()
+
+
 def _patch_jos3_shivering() -> None:
-    # Patch only once per process.
     try:
-        import jos3.thermoregulation as threg  # type: ignore
+        import jos3.thermoregulation as threg
     except Exception:
         return
     if getattr(threg, "_htm_shivering_patched", False):
@@ -52,43 +56,13 @@ def _patch_jos3_shivering() -> None:
 
     def shivering_with_activity(*args: Any, **kwargs: Any) -> Any:
         mshiv = orig(*args, **kwargs)
-        options = kwargs.get("options", None)
-        if options is None and args and isinstance(args[-1], dict):
-            options = args[-1]
+        scale = getattr(_thread_context, "shivering_scale", 1.0)
+        print(scale)
 
-        activity_scale = 1.0
-        hypothermia_scale = 1.0  # Hypothermia/fatigue suppression scale (0..1)
-
-        try:
-            if isinstance(options, dict):
-                activity_scale = float(options.get("shivering_activity_scale", 1.0))
-                hypothermia_scale = float(
-                    options.get("shivering_hypothermia_scale", 1.0)
-                )
-        except Exception:
-            pass
-
-        # Total shivering scale = activity suppression * hypothermia/fatigue suppression.
-        scale = activity_scale * hypothermia_scale
-
-        if scale >= 0.999:
-            return mshiv
-
-        if scale <= 1e-6:
-            try:
-                threg.PRE_SHIV = 0
-            except Exception:
-                pass
-            return np.zeros_like(mshiv)
-
-        try:
-            threg.PRE_SHIV = float(getattr(threg, "PRE_SHIV", 0.0)) * scale
-        except Exception:
-            pass
         return np.asarray(mshiv, dtype=float) * scale
 
-    threg.shivering = shivering_with_activity  # type: ignore[assignment]
-    threg._htm_shivering_patched = True  # type: ignore[attr-defined]
+    threg.shivering = shivering_with_activity
+    threg._htm_shivering_patched = True
 
 
 _patch_jos3_shivering()
@@ -99,15 +73,15 @@ def _clamp(x: float, lo: float, hi: float) -> float:
 
 
 def _json_sanitize(obj: Any) -> Any:
-    if isinstance(obj, (np.floating,)):
-        obj = float(obj)
+    if isinstance(obj, (np.floating, np.integer)):
+        return float(obj) if isinstance(obj, np.floating) else int(obj)
+    if isinstance(obj, np.ndarray):
+        return [_json_sanitize(x) for x in obj.tolist()]
     if isinstance(obj, float) and not math.isfinite(obj):
         return None
     if isinstance(obj, dict):
         return {k: _json_sanitize(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_json_sanitize(v) for v in obj]
-    if isinstance(obj, tuple):
+    if isinstance(obj, (list, tuple)):
         return [_json_sanitize(v) for v in obj]
     return obj
 
@@ -231,25 +205,18 @@ def _sum_segments(d: Dict[str, List[float]], prefix: str) -> List[float]:
     return arr.tolist()
 
 
-def _sanitize_jos3_results(d: Dict[str, Any]) -> Dict[str, List[float]]:
-    out: Dict[str, List[float]] = {}
+def _sanitize_jos3_results(d: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
     for k, series in d.items():
-        # dict_results returns list-like for all keys we care about.
         if not isinstance(series, (list, tuple, np.ndarray)):
             continue
-        vals: List[float] = []
-        ok = True
+        vals: List[Any] = []
         for v in series:
             if hasattr(v, "total_seconds"):
                 vals.append(float(v.total_seconds()))
             else:
-                try:
-                    vals.append(float(v))
-                except Exception:
-                    ok = False
-                    break
-        if ok:
-            out[str(k)] = vals
+                vals.append(_json_sanitize(v))
+        out[str(k)] = vals
     return out
 
 
@@ -370,11 +337,11 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
             f_temp = (current_tcb - 30.0) / (34.0 - 30.0)
 
         # 3) Fatigue factor from cumulative shivering energy.
-        if "Mshiv" in current_results and len(current_results["Mshiv"]) > 0:
-            # Mshiv is per-segment; sum to total shivering power (W) for last minute.
-            last_mshiv_w = float(np.sum(np.asarray(current_results["Mshiv"][-1])))
-        else:
-            last_mshiv_w = 0.0
+        # JOS3 segmented output keys like MshivHead, MshivChest, etc.
+        last_mshiv_w = 0.0
+        for k, series in current_results.items():
+            if k.startswith("Mshiv") and len(series) > 0:
+                last_mshiv_w += float(series[-1])
 
         consumed_shivering_energy_j += last_mshiv_w * 60.0
         f_fatigue = max(
@@ -382,7 +349,8 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
         )
 
         # 4) Inject combined suppression into options for the runtime shivering patch.
-        model.options["shivering_hypothermia_scale"] = float(f_temp * f_fatigue)
+        _thread_context.shivering_scale = float(shiv_scale * f_temp * f_fatigue)
+        print(float(shiv_scale * f_temp * f_fatigue))
 
         # 5) Advance simulation by 1 minute.
         model.simulate(times=1, dtime=60)
