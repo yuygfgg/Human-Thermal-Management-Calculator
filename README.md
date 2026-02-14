@@ -6,14 +6,15 @@ An fun web-based tool for simulating human thermal comfort. It models core and s
 
 Key features include a real-time dashboard with detailed multi-series charts, a comprehensive comfort score, and the ability to import/export full simulation reports as CSV files.
 
-For more serious calculation, <https://github.com/CenterForTheBuiltEnvironment/comfort_tool> should be used.
-
 ### How to Use
 
-1.  Open <https://calc.yuygfgg.xyz/> in your browser.
-2.  Adjust parameters and build your outfit.
-3.  Analyze the real-time simulation dashboard for detailed insights.
-4.  Import or export full simulation reports via CSV.
+1. Start the server:
+   - `/Users/a1/miniconda/bin/python jos3_server.py`
+2. Open:
+   - `http://127.0.0.1:8000/`
+3. Adjust parameters and build your outfit.
+4. Analyze the real-time simulation dashboard for detailed insights.
+5. Import or export full simulation reports via CSV.
 
 ### License
 
@@ -46,4 +47,3 @@ By accessing or using this Application you expressly acknowledge and agree that:
 8. **Jurisdiction.** These terms are governed by and construed in accordance with the laws of the jurisdiction in which the developer(s) is/are located, without regard to its conflict of law provisions. Any dispute arising from or relating to these terms or the Application shall be brought exclusively in the competent courts of that jurisdiction.
 
 If you do not agree to every term above, you must not use or access the Application.
-

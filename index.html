@@ -397,7 +397,6 @@
                         data-t="dashboard_title"></h2>
                     <div id="simulation-results-container" class="text-center">
                         <div class="mb-6">
-                            <p class="text-sm text-gray-400" data-t="core_temp_prediction"></p>
                             <div id="simulation-summary"
                                 class="text-4xl font-bold p-3 rounded-lg h-24 flex items-center justify-center transition-all duration-500">
                             </div>
@@ -474,6 +473,63 @@
                             </div>
                         </div>
 
+                        <details id="jos3-panel" class="mt-6 text-left">
+                            <summary class="text-lg font-bold text-white border-b-2 border-gray-700 pb-1"
+                                data-t="jos3_details_title"></summary>
+                            <p class="text-xs text-gray-400 mt-2" data-t="jos3_disclaimer"></p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                <div>
+                                    <h4 class="text-sm font-bold text-white mb-2" data-t="jos3_skin_table_title"></h4>
+                                    <div class="overflow-x-auto rounded-md border border-gray-700">
+                                        <table id="jos3-skin-table" class="w-full text-xs"></table>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-white mb-2" data-t="jos3_core_table_title"></h4>
+                                    <div class="overflow-x-auto rounded-md border border-gray-700">
+                                        <table id="jos3-core-table" class="w-full text-xs"></table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <h4 class="text-sm font-bold text-white mb-2" data-t="jos3_raw_viewer_title"></h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                    <div>
+                                        <label for="jos3-key-filter" class="block text-xs font-medium text-gray-300"
+                                            data-t="jos3_filter_label"></label>
+                                        <input id="jos3-key-filter" type="text" class="input-field" />
+                                    </div>
+                                    <div>
+                                        <label for="jos3-raw-key" class="block text-xs font-medium text-gray-300"
+                                            data-t="jos3_param"></label>
+                                        <select id="jos3-raw-key" class="input-field"></select>
+                                    </div>
+                                    <div>
+                                        <label for="jos3-raw-mode" class="block text-xs font-medium text-gray-300"
+                                            data-t="jos3_chart_mode"></label>
+                                        <select id="jos3-raw-mode" class="input-field">
+                                            <option value="auto" data-t="jos3_mode_auto"></option>
+                                            <option value="single" data-t="jos3_mode_single"></option>
+                                            <option value="all_segments" data-t="jos3_mode_all_segments"></option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end mt-2">
+                                    <div class="md:col-span-1">
+                                        <label for="jos3-segment" class="block text-xs font-medium text-gray-300"
+                                            data-t="jos3_segment"></label>
+                                        <select id="jos3-segment" class="input-field"></select>
+                                    </div>
+                                    <div class="md:col-span-2 text-xs text-gray-400" id="jos3-raw-meta"></div>
+                                </div>
+                                <div id="jos3-chart-container" class="w-full h-72 rounded-lg p-2 mt-3 border relative">
+                                    <canvas id="jos3-chart"></canvas>
+                                </div>
+                            </div>
+                        </details>
+
                         <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <button id="import-csv-btn" class="btn-secondary w-full" data-t="import_csv_btn"></button>
                             <button id="export-csv-btn" class="btn-secondary w-full" data-t="export_csv_btn"></button>
@@ -487,6 +543,25 @@
 
     <script>
         const bodyRegions = { head: 0.07, torso: 0.35, arms: 0.14, hands: 0.05, legs: 0.32, feet: 0.07 };
+        const jos3Segments = [
+            { key: 'Head', zh: '头', en: 'Head' },
+            { key: 'Neck', zh: '颈', en: 'Neck' },
+            { key: 'Chest', zh: '胸', en: 'Chest' },
+            { key: 'Back', zh: '背', en: 'Back' },
+            { key: 'Pelvis', zh: '骨盆', en: 'Pelvis' },
+            { key: 'LShoulder', zh: '左肩', en: 'Left Shoulder' },
+            { key: 'LArm', zh: '左臂', en: 'Left Arm' },
+            { key: 'LHand', zh: '左手', en: 'Left Hand' },
+            { key: 'RShoulder', zh: '右肩', en: 'Right Shoulder' },
+            { key: 'RArm', zh: '右臂', en: 'Right Arm' },
+            { key: 'RHand', zh: '右手', en: 'Right Hand' },
+            { key: 'LThigh', zh: '左大腿', en: 'Left Thigh' },
+            { key: 'LLeg', zh: '左小腿', en: 'Left Leg' },
+            { key: 'LFoot', zh: '左脚', en: 'Left Foot' },
+            { key: 'RThigh', zh: '右大腿', en: 'Right Thigh' },
+            { key: 'RLeg', zh: '右小腿', en: 'Right Leg' },
+            { key: 'RFoot', zh: '右脚', en: 'Right Foot' },
+        ];
         const translations = {
             en: {
                 page_title: "Human Thermal Management Calculator v0.2",
@@ -532,6 +607,23 @@
                 physiological_status: "Physiological Response",
                 status_stable: "Physiologically Stable",
                 detailed_status_title: "Detailed Final Status",
+                jos3_details_title: "JOS-3 Detailed Outputs",
+                jos3_disclaimer: "Educational/approximate annotations only; not medical advice.",
+                jos3_skin_table_title: "Local Skin Temperature (Tsk, °C)",
+                jos3_core_table_title: "Local Core Temperature (Tcr, °C)",
+                jos3_table_part: "Part",
+                jos3_table_value: "Final",
+                jos3_table_note: "Note",
+                jos3_raw_viewer_title: "Raw JOS-3 Time Series Viewer",
+                jos3_filter_label: "Filter keys",
+                jos3_filter_placeholder: "e.g. TskHead, Met, BFskLHand ...",
+                jos3_param: "Parameter key",
+                jos3_chart_mode: "Plot mode",
+                jos3_mode_auto: "Auto",
+                jos3_mode_single: "Single series",
+                jos3_mode_all_segments: "All segments (if applicable)",
+                jos3_segment: "Segment",
+                jos3_no_data: "No JOS-3 data (start the Python backend).",
                 heat_gain: "Heat Gain",
                 metabolic_gain: "Metabolic Heat",
                 solar_gain: "Solar Radiation Gain",
@@ -668,6 +760,23 @@
                 physiological_status: "生理反应状态",
                 status_stable: "生理状态稳定",
                 detailed_status_title: "详细最终状态",
+                jos3_details_title: "JOS-3 详细输出",
+                jos3_disclaimer: "以下注释用于科普且为粗略阈值；不构成医疗建议，也不应用于安全关键判断。",
+                jos3_skin_table_title: "分区皮肤温度 (Tsk, °C)",
+                jos3_core_table_title: "分区核心温度 (Tcr, °C)",
+                jos3_table_part: "部位",
+                jos3_table_value: "最终值",
+                jos3_table_note: "注释",
+                jos3_raw_viewer_title: "JOS-3 原始时间序列查看器",
+                jos3_filter_label: "筛选键名",
+                jos3_filter_placeholder: "例如：TskHead、Met、BFskLHand ...",
+                jos3_param: "参数键名",
+                jos3_chart_mode: "绘图模式",
+                jos3_mode_auto: "自动",
+                jos3_mode_single: "单条曲线",
+                jos3_mode_all_segments: "全分区（若适用）",
+                jos3_segment: "分区",
+                jos3_no_data: "没有 JOS-3 数据（请启动 Python 后端）。",
                 heat_gain: "热量增益",
                 metabolic_gain: "代谢产热",
                 solar_gain: "太阳辐射增益",
@@ -926,10 +1035,12 @@
         let debounceTimer;
         let currentLang = 'zh';
         let lastSimulationResults = {};
+        let lastSimRequestId = 0;
         let lastComfortText = '';
         let lastComfortKey = '';
         let currentEditIndex = -1;
         let simulationChartInstance = null;
+        let jos3ChartInstance = null;
         let chartDatasetVisibility = {};
         let currentTheme = 'dark';
         let userHasSetTheme = false;
@@ -974,38 +1085,51 @@
         }
 
         function updateChartTheme() {
-            if (!simulationChartInstance) return;
-
             const isDark = currentTheme === 'dark';
             const textColor = isDark ? '#9ca3af' : '#4b5563';
             const gridColor = isDark ? '#374151' : '#e5e7eb';
             const chartAreaGridColor = isDark ? '#30363d' : '#e5e7eb';
 
+            if (!simulationChartInstance && !jos3ChartInstance) return;
+
             // Update chart options
-            simulationChartInstance.options.scales.x.title.color = textColor;
-            simulationChartInstance.options.scales.x.grid.color = gridColor;
-            simulationChartInstance.options.scales.x.ticks.color = textColor;
+            if (simulationChartInstance) {
+                simulationChartInstance.options.scales.x.title.color = textColor;
+                simulationChartInstance.options.scales.x.grid.color = gridColor;
+                simulationChartInstance.options.scales.x.ticks.color = textColor;
 
-            simulationChartInstance.options.scales.y.title.color = isDark ? '#a78bfa' : '#8b5cf6';
-            simulationChartInstance.options.scales.y.grid.color = chartAreaGridColor;
-            simulationChartInstance.options.scales.y.ticks.color = isDark ? '#a78bfa' : '#8b5cf6';
+                simulationChartInstance.options.scales.y.title.color = isDark ? '#a78bfa' : '#8b5cf6';
+                simulationChartInstance.options.scales.y.grid.color = chartAreaGridColor;
+                simulationChartInstance.options.scales.y.ticks.color = isDark ? '#a78bfa' : '#8b5cf6';
 
-            if (simulationChartInstance.options.scales.y1) {
-                simulationChartInstance.options.scales.y1.title.color = isDark ? '#ec4899' : '#db2777';
-                simulationChartInstance.options.scales.y1.ticks.color = isDark ? '#ec4899' : '#db2777';
+                if (simulationChartInstance.options.scales.y1) {
+                    simulationChartInstance.options.scales.y1.title.color = isDark ? '#ec4899' : '#db2777';
+                    simulationChartInstance.options.scales.y1.ticks.color = isDark ? '#ec4899' : '#db2777';
+                }
+
+                if (simulationChartInstance.options.scales.y2) {
+                    simulationChartInstance.options.scales.y2.title.color = isDark ? '#7dd3fc' : '#0891b2';
+                    simulationChartInstance.options.scales.y2.ticks.color = isDark ? '#7dd3fc' : '#0891b2';
+                }
+
+                if (simulationChartInstance.options.scales.y3) {
+                    simulationChartInstance.options.scales.y3.title.color = isDark ? '#facc15' : '#ca8a04';
+                    simulationChartInstance.options.scales.y3.ticks.color = isDark ? '#facc15' : '#ca8a04';
+                }
+
+                simulationChartInstance.update();
             }
 
-            if (simulationChartInstance.options.scales.y2) {
-                simulationChartInstance.options.scales.y2.title.color = isDark ? '#7dd3fc' : '#0891b2';
-                simulationChartInstance.options.scales.y2.ticks.color = isDark ? '#7dd3fc' : '#0891b2';
+            if (jos3ChartInstance) {
+                if (jos3ChartInstance.options.scales?.x?.title) jos3ChartInstance.options.scales.x.title.color = textColor;
+                if (jos3ChartInstance.options.scales?.x?.grid) jos3ChartInstance.options.scales.x.grid.color = gridColor;
+                if (jos3ChartInstance.options.scales?.x?.ticks) jos3ChartInstance.options.scales.x.ticks.color = textColor;
+                if (jos3ChartInstance.options.scales?.y?.title) jos3ChartInstance.options.scales.y.title.color = textColor;
+                if (jos3ChartInstance.options.scales?.y?.grid) jos3ChartInstance.options.scales.y.grid.color = gridColor;
+                if (jos3ChartInstance.options.scales?.y?.ticks) jos3ChartInstance.options.scales.y.ticks.color = textColor;
+                if (jos3ChartInstance.options.plugins?.legend?.labels) jos3ChartInstance.options.plugins.legend.labels.color = textColor;
+                jos3ChartInstance.update();
             }
-
-            if (simulationChartInstance.options.scales.y3) {
-                simulationChartInstance.options.scales.y3.title.color = isDark ? '#facc15' : '#ca8a04';
-                simulationChartInstance.options.scales.y3.ticks.color = isDark ? '#facc15' : '#ca8a04';
-            }
-
-            simulationChartInstance.update();
         }
 
         function saveInputsToSessionStorage() {
@@ -1083,11 +1207,15 @@
                     el.textContent = t[key];
                 }
             });
+            if (dom.jos3KeyFilter) {
+                dom.jos3KeyFilter.placeholder = t.jos3_filter_placeholder || '';
+            }
             populateClothingSelect();
             populateActivitySelect();
             populateThicknessSelect();
             updateOutfitUI();
             triggerSimulation();
+            updateJos3Panel();
         }
 
         function populateClothingSelect() {
@@ -1237,7 +1365,7 @@
             return weightedClo;
         }
 
-        function runSimulation() {
+        async function runSimulation() {
             const gender = dom.gender.value;
             const heightCm = parseFloat(dom.height.value);
             const weightKg = parseFloat(dom.weight.value);
@@ -1255,263 +1383,46 @@
             const windMs = windKmh / 3.6;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
+            const regionalClo = calculateRegionalClo();
 
-            const BSA = 0.007184 * Math.pow(heightCm, 0.725) * Math.pow(weightKg, 0.425);
-            const bmi = weightKg / Math.pow(heightCm / 100, 2);
-            const bodyFatPercentage = gender === 'female' ? (1.20 * bmi) + (0.23 * age) - 5.4 : (1.20 * bmi) + (0.23 * age) - 16.2;
-            const bodyHeatCapacity = (3470 * (1 - bodyFatPercentage / 100) + 1250 * (bodyFatPercentage / 100)) * weightKg;
-            const T_CORE_INITIAL = coreTemp;
-            const CLO_TO_SI = 0.155;
+            const requestId = ++lastSimRequestId;
+            try {
+                const resp = await fetch('/api/simulate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sex: gender,
+                        height_cm: heightCm,
+                        weight_kg: weightKg,
+                        age_years: age,
+                        base_core_temp_c: coreTemp,
+                        air_temp_c: tempC,
+                        wind_speed_ms: windMs,
+                        rh_percent: humidityPercent,
+                        solar_radiation_wm2: solarRad,
+                        activity_met: initialMetValue,
+                        duration_min: durationMins,
+                        posture: 'standing',
+                        regional_clo: regionalClo,
+                        // TODO: JOS3 does not take this into account.
+                        respiratory_modifier: totalRespiratoryModifier,
+                        effective_clo: clothingClo,
+                    }),
+                });
 
-            const regionalClo = calculateRegionalClo(); // Get per-region insulation values
+                if (requestId !== lastSimRequestId) return; // Drop stale responses.
 
-            // BMR calculation using Mifflin-St Jeor equation (kcal/day)
-            let bmrKcal;
-            if (gender === 'female') {
-                bmrKcal = (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
-            } else {
-                bmrKcal = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data && data.error ? data.error : `HTTP ${resp.status}`);
+                }
+
+                lastSimulationResults = data;
+                updateUIFromResults();
+            } catch (e) {
+                // Keep it quiet on transient errors during typing/scrolling.
+                console.warn('Simulation failed:', e);
             }
-            const bmrWatts = bmrKcal * 0.04843; // Convert kcal/day to Watts
-
-            // Physiological response thresholds and parameters (cold)
-            const SHIVERING_THRESHOLD = coreTemp - 0.3;
-            const MAX_SHIVERING_MET_INCREASE = 4.0; // maximum shivering metabolic increase (Met)
-
-            // Physiological response thresholds and parameters (hot)
-            const SWEATING_THRESHOLD = coreTemp + 0.3;
-            const MAX_SWEATING_HEAT_LOSS_WATTS = 400; // maximum sweating heat loss capacity (W)
-
-            // Solar radiation parameters
-            const SOLAR_BODY_EXPOSED_FRAC = 0.25;  // Projected area = 25% of total body surface area
-            const SKIN_ABSORPTIVITY = 0.7; // Average absorptivity of skin/clothing
-            // Effective coefficient used in simulation: 0.12
-            const SOLAR_EFFECTIVE_FACTOR = 0.12;
-
-            const calculateConvectiveCoefficient = (v) => {
-                if (!v || v < 0.1) return 3.1; // Use natural convection approximation 3.1 W/(m²·K) when wind speed is very low
-                return 8.3 * Math.pow(v, 0.6); // ISO 7933: h_c = 8.3 * v^0.6
-            };
-            const h_c = calculateConvectiveCoefficient(windMs);
-            const h_r = 4.7; // Typical radiative heat transfer coefficient (W/(m²·K))
-            const h_e = h_c + h_r; // Overall external heat transfer coefficient
-
-            // Two-node model helper functions
-            const calculateRespiratoryLoss = (metabolicWatts, airTempC, rh, respiratoryModifier = 0) => {
-                const p_sat_air_kpa = 0.61121 * Math.exp((18.678 - airTempC / 234.5) * (airTempC / (257.14 + airTempC)));
-                const p_vapor_air_kpa = rh * p_sat_air_kpa;
-                const loss_sensible = 0.0014 * metabolicWatts * (34 - airTempC);
-                const loss_latent = 0.0173 * metabolicWatts * Math.max(0, 6.266 - p_vapor_air_kpa);
-                const totalLoss = loss_sensible + loss_latent;
-                return totalLoss * (1 - respiratoryModifier);
-            };
-
-            const calculateDryHeatLoss = (coreT, airT, tissueIns, regionalCloValues, he) => {
-                let totalDryLoss = 0;
-                for (const region in bodyRegions) {
-                    const regionalCloSI = (regionalCloValues[region] || 0) * CLO_TO_SI;
-                    const I_ext_regional = regionalCloSI + (1 / he);
-                    const totalInsulation_regional = tissueIns + I_ext_regional;
-                    const regionArea = BSA * bodyRegions[region];
-
-                    if (totalInsulation_regional > 0) {
-                        const loss_regional = (coreT - airT) / totalInsulation_regional * regionArea;
-                        totalDryLoss += loss_regional;
-                    }
-                }
-                return totalDryLoss;
-            };
-
-            const calculateTissueResponse = (currentCoreTemp, setPointTemp) => {
-                const I_TISSUE_BASAL_SI = 0.027, I_TISSUE_MAX_SI = 0.054, I_TISSUE_MIN_SI = 0.009;
-                const tempDiff = currentCoreTemp - setPointTemp;
-                let insulation = I_TISSUE_BASAL_SI;
-                let constrictionFactor = 0;
-                let dilationFactor = 0;
-
-                if (tempDiff < -0.1) { // Vasoconstriction
-                    constrictionFactor = Math.min(1, (-tempDiff - 0.1) / 0.8);
-                    insulation = I_TISSUE_BASAL_SI + constrictionFactor * (I_TISSUE_MAX_SI - I_TISSUE_BASAL_SI);
-                } else if (tempDiff > 0.1) { // Vasodilation
-                    dilationFactor = Math.min(1, (tempDiff - 0.1) / 0.8);
-                    insulation = I_TISSUE_BASAL_SI - dilationFactor * (I_TISSUE_BASAL_SI - I_TISSUE_MIN_SI);
-                }
-                return { insulation, constrictionFactor, dilationFactor };
-            };
-
-            const dataHistory = {
-                time: [], coreTemp: [], skinTemp: [], heatProduction: [], solarGain: [],
-                respiratoryLoss: [], dryLoss: [], sweatLoss: [], netRate: [],
-                totalGain: [], totalLoss: [],
-                shiveringIntensity: [], sweatingIntensity: [],
-                vasoconstrictionIntensity: [], vasodilationIntensity: [],
-                comfortScore: []
-            };
-
-            let currentCoreTemp = T_CORE_INITIAL;
-            let vasoActive = false, shiverActive = false, sweatActive = false, dilateActive = false;
-            let finalState = {};
-            const historyForAvg = {
-                heatProduction: [],
-                solarGain: [],
-                respiratoryLoss: [],
-                dryLoss: [],
-                sweatLoss: [],
-                netRate: [],
-            };
-
-            let weightedComfortSum = 0;
-            let totalComfortWeight = 0;
-            let comfortScore = 100;
-
-            for (let t = 0; t <= durationMins; t++) {
-                dataHistory.time.push(t);
-                dataHistory.coreTemp.push(currentCoreTemp);
-
-                // Calculate physiological regulation state
-                const tissueResponse = calculateTissueResponse(currentCoreTemp, T_CORE_INITIAL);
-                const tissueInsulationSI = tissueResponse.insulation;
-                vasoActive = tissueInsulationSI > 0.028; // Slightly higher than basal value
-                dilateActive = tissueInsulationSI < 0.026; // Slightly lower than basal value
-
-                let shiveringMetIncrease = 0;
-                let sweatingHeatLoss = 0;
-
-                shiverActive = false;
-                if (currentCoreTemp < SHIVERING_THRESHOLD) {
-                    const tempDiff = SHIVERING_THRESHOLD - currentCoreTemp;
-                    shiveringMetIncrease = Math.min(MAX_SHIVERING_MET_INCREASE, tempDiff * 4.0); // Enhanced response
-                    shiverActive = true;
-                }
-
-                sweatActive = false;
-                if (currentCoreTemp > SWEATING_THRESHOLD) {
-                    const tempDiff = currentCoreTemp - SWEATING_THRESHOLD;
-                    sweatingHeatLoss = Math.min(MAX_SWEATING_HEAT_LOSS_WATTS, tempDiff * 150); // Enhanced response
-                    sweatActive = true;
-                }
-
-                // Calculate heat gains and losses
-                const clothingInsulationSI = clothingClo * CLO_TO_SI;
-                const currentMetValue = initialMetValue + shiveringMetIncrease;
-                const heatProductionWatts = 58.2 * BSA * currentMetValue;
-
-                const heatLossResp = calculateRespiratoryLoss(heatProductionWatts, tempC, humidityPercent / 100, totalRespiratoryModifier);
-                const netMetabolicGain = heatProductionWatts - heatLossResp;
-
-                const solarHeatGainWatts = solarRad * BSA * SOLAR_EFFECTIVE_FACTOR;
-
-                const heatLossDry = calculateDryHeatLoss(currentCoreTemp, tempC, tissueInsulationSI, regionalClo, h_e);
-
-                const netHeatRateWatts = netMetabolicGain + solarHeatGainWatts - heatLossDry - sweatingHeatLoss;
-
-                // Calculate and store skin temp for chart
-                let weightedSkinTempSum = 0;
-                for (const region in bodyRegions) {
-                    const regionalCloSI = (regionalClo[region] || 0) * CLO_TO_SI;
-                    const I_ext_regional = regionalCloSI + (1 / h_e);
-                    const totalInsulation_regional = tissueInsulationSI + I_ext_regional;
-                    if (totalInsulation_regional > 0) {
-                        const regionalSkinTemp = (currentCoreTemp * I_ext_regional + tempC * tissueInsulationSI) / totalInsulation_regional;
-                        weightedSkinTempSum += regionalSkinTemp * bodyRegions[region];
-                    } else {
-                        weightedSkinTempSum += tempC * bodyRegions[region];
-                    }
-                }
-                dataHistory.skinTemp.push(weightedSkinTempSum);
-
-                // Store heat balance data
-                historyForAvg.heatProduction.push(heatProductionWatts);
-                historyForAvg.solarGain.push(solarHeatGainWatts);
-                historyForAvg.respiratoryLoss.push(heatLossResp);
-                historyForAvg.dryLoss.push(heatLossDry);
-                historyForAvg.sweatLoss.push(sweatingHeatLoss);
-                historyForAvg.netRate.push(netHeatRateWatts);
-
-                dataHistory.heatProduction.push(heatProductionWatts);
-                dataHistory.solarGain.push(solarHeatGainWatts);
-                dataHistory.respiratoryLoss.push(heatLossResp);
-                dataHistory.dryLoss.push(heatLossDry);
-                dataHistory.sweatLoss.push(sweatingHeatLoss);
-                dataHistory.netRate.push(netHeatRateWatts);
-                dataHistory.totalGain.push(heatProductionWatts + solarHeatGainWatts);
-                dataHistory.totalLoss.push(heatLossResp + heatLossDry + sweatingHeatLoss);
-
-                const shiveringIntensity = (shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100;
-                const sweatingIntensity = (sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100;
-                dataHistory.shiveringIntensity.push(shiveringIntensity);
-                dataHistory.sweatingIntensity.push(sweatingIntensity);
-                const vasoconstrictionIntensity = tissueResponse.constrictionFactor * 100;
-                const vasodilationIntensity = tissueResponse.dilationFactor * 100;
-                dataHistory.vasoconstrictionIntensity.push(vasoconstrictionIntensity);
-                dataHistory.vasodilationIntensity.push(vasodilationIntensity);
-
-                // Calculate comfort score with weighted average over time
-                const instantComfortScore = calculateInstantComfortScore(
-                    currentCoreTemp,
-                    T_CORE_INITIAL,
-                    weightedSkinTempSum,
-                    shiveringIntensity,
-                    sweatingIntensity,
-                    netHeatRateWatts,
-                    regionalClo
-                );
-
-                const currentWeight = t + 1;
-                weightedComfortSum += instantComfortScore * currentWeight;
-                totalComfortWeight += currentWeight;
-                comfortScore = totalComfortWeight > 0 ? weightedComfortSum / totalComfortWeight : instantComfortScore;
-                dataHistory.comfortScore.push(comfortScore);
-
-                // Update core body temperature
-                const tempChangePerMinute = (netHeatRateWatts / bodyHeatCapacity) * 60;
-                currentCoreTemp += tempChangePerMinute;
-
-                if (t === durationMins) {
-                    finalState = {
-                        heatProductionWatts,
-                        solarHeatGainWatts,
-                        heatLossResp,
-                        heatLossDry,
-                        sweatingHeatLoss,
-                        netHeatRateWatts,
-                        shiveringIntensity: (shiveringMetIncrease / MAX_SHIVERING_MET_INCREASE) * 100,
-                        sweatingIntensity: (sweatingHeatLoss / MAX_SWEATING_HEAT_LOSS_WATTS) * 100,
-                        vasoconstrictionIntensity: vasoconstrictionIntensity,
-                        vasodilationIntensity: vasodilationIntensity,
-                    };
-                }
-            }
-
-            const finalTemp = currentCoreTemp;
-            const finalSkinTemp = dataHistory.skinTemp[dataHistory.skinTemp.length - 1];
-
-            const calculateAverage = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-
-            const averageResults = {
-                heatProductionWatts: calculateAverage(historyForAvg.heatProduction),
-                solarHeatGainWatts: calculateAverage(historyForAvg.solarGain),
-                heatLossResp: calculateAverage(historyForAvg.respiratoryLoss),
-                heatLossDry: calculateAverage(historyForAvg.dryLoss),
-                sweatingHeatLoss: calculateAverage(historyForAvg.sweatLoss),
-                netRate: calculateAverage(historyForAvg.netRate),
-            };
-
-            lastSimulationResults = {
-                finalTemp,
-                coreTemp,
-                finalSkinTemp,
-                comfortScore,
-                vasoActive,
-                dilateActive,
-                shiverActive,
-                sweatActive,
-                finalState,
-                averages: averageResults,
-                dataHistory,
-            };
-
-            updateUIFromResults();
         }
 
         function updateUIFromResults() {
@@ -1528,6 +1439,7 @@
             renderChart(dataHistory);
             updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore);
             updateDetailedStatus(finalState, averages);
+            updateJos3Panel();
         }
 
         function getIntensityKey(type, percentage) {
@@ -1565,13 +1477,321 @@
             dom.detailNet.textContent = `${finalState.netHeatRateWatts.toFixed(1)} / ${averages.netRate.toFixed(1)} W`;
 
             const shiveringKey = getIntensityKey('shivering', finalState.shiveringIntensity);
-            dom.detailShivering.innerHTML = `${finalState.shiveringIntensity.toFixed(1)} % <span class="text-xs text-gray-400 ml-1">(${t[shiveringKey]})</span>`;
+            let shivNote = '';
+            if (Number.isFinite(finalState.shiveringSuppressionCoeff) && finalState.shiveringSuppressionCoeff > 0.001) {
+                const supPct = (finalState.shiveringSuppressionCoeff * 100).toFixed(0);
+                shivNote = currentLang === 'en' ? `, suppressed ${supPct}%` : `，抑制${supPct}%`;
+            }
+            dom.detailShivering.innerHTML = `${finalState.shiveringIntensity.toFixed(1)} % <span class="text-xs text-gray-400 ml-1">(${t[shiveringKey]}${shivNote})</span>`;
 
             const sweatingKey = getIntensityKey('sweating', finalState.sweatingIntensity);
             dom.detailSweating.innerHTML = `${finalState.sweatingIntensity.toFixed(1)} % <span class="text-xs text-gray-400 ml-1">(${t[sweatingKey]})</span>`;
 
             dom.detailVasoconstriction.textContent = `${finalState.vasoconstrictionIntensity.toFixed(1)} %`;
             dom.detailVasodilation.textContent = `${finalState.vasodilationIntensity.toFixed(1)} %`;
+        }
+
+        function getJos3Results() {
+            return lastSimulationResults?.jos3?.results || null;
+        }
+
+        function getJos3SegmentLabel(segKey) {
+            const seg = jos3Segments.find(s => s.key === segKey);
+            if (!seg) return segKey;
+            return currentLang === 'en' ? seg.en : seg.zh;
+        }
+
+        function annotateSkinTemp(tskC, segKey) {
+            const isExtremity = segKey.includes('Hand') || segKey.includes('Foot');
+            const tsk = tskC;
+
+            if (!Number.isFinite(tsk)) return { text: '', cls: 'text-gray-400' };
+
+            // Hot side (rare in this model, but keep a guardrail).
+            if (tsk >= 43) {
+                return {
+                    text: currentLang === 'en' ? '(Very hot: pain/burn risk depends on duration)' : '（很热：疼痛/烫伤风险）',
+                    cls: 'text-red-400'
+                };
+            }
+            if (tsk >= 38) {
+                return {
+                    text: currentLang === 'en' ? '(Hot: discomfort/sweating likely)' : '（偏热：不适/出汗可能↑）',
+                    cls: 'text-orange-300'
+                };
+            }
+            if (tsk >= 33) {
+                return {
+                    text: currentLang === 'en' ? '(Common skin-temp range)' : '（常见皮肤温度）',
+                    cls: 'text-green-300'
+                };
+            }
+            if (tsk >= 25) {
+                return {
+                    text: currentLang === 'en' ? '(Cool)' : '（偏凉）',
+                    cls: 'text-sky-300'
+                };
+            }
+
+            // Cold side.
+            if (tsk < 0) {
+                return {
+                    text: currentLang === 'en' ? '(High frostbite risk: tissue may freeze)' : '（冻伤高风险：组织可能冻结）',
+                    cls: 'text-red-400'
+                };
+            }
+            if (tsk < 7) {
+                return {
+                    text: currentLang === 'en'
+                        ? (isExtremity ? '(Very cold: numbness likely in fingers/toes)' : '(Very cold: sensation may be markedly reduced)')
+                        : (isExtremity ? '（非常冰冷：手指/脚趾麻木可能性高）' : '（非常冰冷：感觉可能显著下降）'),
+                    cls: 'text-orange-300',
+                };
+            }
+            if (tsk < 15) {
+                return {
+                    text: currentLang === 'en'
+                        ? (isExtremity ? '(Cold: pain/dexterity may drop in hands/feet)' : '(Cold: discomfort likely)')
+                        : (isExtremity ? '（很冷：手/脚冷痛、灵巧度下降）' : '（很冷：不适可能）'),
+                    cls: 'text-yellow-300',
+                };
+            }
+            return {
+                text: currentLang === 'en' ? '(Cool: discomfort likely; dexterity may drop)' : '（偏冷：可能不适；灵巧度下降）',
+                cls: 'text-yellow-300'
+            };
+        }
+
+        function renderJos3Tables() {
+            if (!dom.jos3SkinTable || !dom.jos3CoreTable) return;
+            const t = translations[currentLang];
+            const r = getJos3Results();
+
+            if (!r) {
+                dom.jos3SkinTable.innerHTML = `<tr><td class="p-2 text-gray-400">${t.jos3_no_data}</td></tr>`;
+                dom.jos3CoreTable.innerHTML = `<tr><td class="p-2 text-gray-400">${t.jos3_no_data}</td></tr>`;
+                return;
+            }
+
+            const th = (cols) => `<tr class="text-gray-400 border-b border-gray-700">${cols.map(c => `<th class="text-left font-semibold p-2">${c}</th>`).join('')}</tr>`;
+
+            // Skin temperature table.
+            let skinHtml = th([t.jos3_table_part, 'Tsk', t.jos3_table_note]);
+            jos3Segments.forEach(seg => {
+                const key = `Tsk${seg.key}`;
+                const series = r[key];
+                const v = series && series.length ? series[series.length - 1] : NaN;
+                const ann = annotateSkinTemp(v, seg.key);
+                skinHtml += `<tr class="border-b border-gray-800">
+                    <td class="p-2">${getJos3SegmentLabel(seg.key)}</td>
+                    <td class="p-2 font-mono">${Number.isFinite(v) ? v.toFixed(2) : '--'}</td>
+                    <td class="p-2 ${ann.cls}">${ann.text}</td>
+                </tr>`;
+            });
+            dom.jos3SkinTable.innerHTML = skinHtml;
+
+            // Core temperature table.
+            let coreHtml = th([t.jos3_table_part, 'Tcr']);
+            jos3Segments.forEach(seg => {
+                const key = `Tcr${seg.key}`;
+                const series = r[key];
+                const v = series && series.length ? series[series.length - 1] : NaN;
+                coreHtml += `<tr class="border-b border-gray-800">
+                    <td class="p-2">${getJos3SegmentLabel(seg.key)}</td>
+                    <td class="p-2 font-mono">${Number.isFinite(v) ? v.toFixed(2) : '--'}</td>
+                </tr>`;
+            });
+            dom.jos3CoreTable.innerHTML = coreHtml;
+        }
+
+        function guessJos3Unit(key) {
+            if (!key) return '';
+            if (key === 'ModTime') return 's';
+            if (key.startsWith('T')) return '°C';
+            if (key.startsWith('BF')) return 'L/h';
+            if (key.startsWith('Wet')) return '';
+            if (key === 'Wle') return 'g/s';
+            if (['Met', 'RES', 'RESsh', 'RESlh'].includes(key)) return 'W';
+            if (key.startsWith('THLsk') || key.startsWith('SHLsk') || key.startsWith('LHLsk')) return 'W';
+            if (key.startsWith('Esk') || key.startsWith('Esweat') || key.startsWith('Emax')) return 'W';
+            return '';
+        }
+
+        function splitJos3KeyFamily(key) {
+            if (!key) return null;
+            for (const seg of jos3Segments) {
+                if (key.endsWith(seg.key)) {
+                    return { prefix: key.slice(0, -seg.key.length), seg: seg.key };
+                }
+            }
+            return null;
+        }
+
+        function populateJos3ViewerOptions() {
+            const r = getJos3Results();
+            if (!dom.jos3RawKey || !dom.jos3Segment || !dom.jos3RawMode) return;
+
+            // Segments.
+            if (dom.jos3Segment.options.length === 0) {
+                jos3Segments.forEach(seg => {
+                    const opt = document.createElement('option');
+                    opt.value = seg.key;
+                    opt.textContent = getJos3SegmentLabel(seg.key);
+                    dom.jos3Segment.appendChild(opt);
+                });
+            } else {
+                // Update segment labels on language switch.
+                Array.from(dom.jos3Segment.options).forEach((opt, i) => {
+                    const seg = jos3Segments[i];
+                    if (seg) opt.textContent = getJos3SegmentLabel(seg.key);
+                });
+            }
+
+            if (!r) {
+                dom.jos3RawKey.innerHTML = '';
+                return;
+            }
+
+            const filter = (dom.jos3KeyFilter?.value || '').trim().toLowerCase();
+            const keys = Object.keys(r).filter(k => (filter ? k.toLowerCase().includes(filter) : true));
+            keys.sort((a, b) => a.localeCompare(b));
+
+            const favorites = ['Tcb', 'TskMean', 'Met', 'RES', 'WetMean', 'Wle', 'CO'];
+            const ordered = [
+                ...favorites.filter(k => keys.includes(k)),
+                ...keys.filter(k => !favorites.includes(k)),
+            ];
+
+            const cur = dom.jos3RawKey.value;
+            dom.jos3RawKey.innerHTML = '';
+            ordered.forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                dom.jos3RawKey.appendChild(opt);
+            });
+
+            if (cur && ordered.includes(cur)) {
+                dom.jos3RawKey.value = cur;
+            } else if (!dom.jos3RawKey.value && ordered.length) {
+                dom.jos3RawKey.value = ordered[0];
+            }
+        }
+
+        function renderJos3RawViewer() {
+            const t = translations[currentLang];
+            const r = getJos3Results();
+            if (!dom.jos3RawKey || !dom.jos3Segment || !dom.jos3Chart || !dom.jos3RawMeta) return;
+
+            if (!r) {
+                dom.jos3RawMeta.textContent = t.jos3_no_data;
+                if (jos3ChartInstance) {
+                    jos3ChartInstance.destroy();
+                    jos3ChartInstance = null;
+                }
+                return;
+            }
+
+            const labels = (() => {
+                const mod = r.ModTime || [];
+                if (mod.length) return mod.map(s => (s / 60).toFixed(0));
+                return (lastSimulationResults?.dataHistory?.time || []).map(x => x.toFixed(0));
+            })();
+
+            const selectedKey = dom.jos3RawKey.value;
+            const selectedSeg = dom.jos3Segment.value || 'Head';
+            const mode = dom.jos3RawMode?.value || 'auto';
+
+            const family = splitJos3KeyFamily(selectedKey);
+            const wantAll = mode === 'all_segments';
+            const datasets = [];
+
+            const segColors = [
+                '#a78bfa', '#f97316', '#22c55e', '#3b82f6', '#eab308', '#ec4899',
+                '#84cc16', '#06b6d4', '#f59e0b', '#60a5fa', '#34d399', '#fb7185',
+                '#c084fc', '#fde047', '#93c5fd', '#fda4af', '#86efac',
+            ];
+
+            function sliceToLabels(arr) {
+                const n = Math.min(labels.length, arr.length);
+                return arr.slice(0, n);
+            }
+
+            if (wantAll && family) {
+                jos3Segments.forEach((seg, idx) => {
+                    const k = `${family.prefix}${seg.key}`;
+                    const series = r[k];
+                    if (!series || !series.length) return;
+                    datasets.push({
+                        label: `${family.prefix}${seg.key}`,
+                        data: sliceToLabels(series),
+                        borderColor: segColors[idx % segColors.length],
+                        backgroundColor: segColors[idx % segColors.length],
+                        tension: 0.2,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                    });
+                });
+            } else {
+                let k = selectedKey;
+                if (family) {
+                    k = `${family.prefix}${selectedSeg}`;
+                }
+                const series = r[k] || [];
+                datasets.push({
+                    label: k,
+                    data: sliceToLabels(series),
+                    borderColor: '#60a5fa',
+                    backgroundColor: '#60a5fa',
+                    tension: 0.2,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                });
+            }
+
+            const unit = guessJos3Unit(selectedKey);
+            const version = lastSimulationResults?.jos3?.version ? `jos3 ${lastSimulationResults.jos3.version}` : 'jos3';
+            dom.jos3RawMeta.textContent = `${version} · key=${selectedKey}${unit ? ` (${unit})` : ''} · series=${datasets.length}`;
+
+            const ctx = dom.jos3Chart.getContext('2d');
+            if (jos3ChartInstance) {
+                jos3ChartInstance.destroy();
+            }
+
+            const isDark = currentTheme === 'dark';
+            const textColor = isDark ? '#9ca3af' : '#4b5563';
+            const gridColor = isDark ? '#374151' : '#e5e7eb';
+
+            jos3ChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: {
+                        legend: { labels: { color: textColor } }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: currentLang === 'en' ? 'Time (min)' : '时间 (min)', color: textColor },
+                            ticks: { color: textColor, maxTicksLimit: 8 },
+                            grid: { color: gridColor },
+                        },
+                        y: {
+                            title: { display: true, text: unit || '', color: textColor },
+                            ticks: { color: textColor },
+                            grid: { color: gridColor },
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateJos3Panel() {
+            populateJos3ViewerOptions();
+            renderJos3Tables();
+            renderJos3RawViewer();
         }
 
         function renderChart(data) {
@@ -1958,30 +2178,15 @@
 
         function updateSimulationSummary(finalTemp, coreTemp, finalSkinTemp, comfortScore) {
             const t = translations[currentLang];
-            let summaryText, colorClass;
             const finalTempStr = finalTemp.toFixed(2);
-            const tempDiff = finalTemp - coreTemp;
-
-            if (finalTemp < 35.0) {
-                summaryText = t.summary_hypothermia; colorClass = 'red-800';
-            } else if (tempDiff < -0.8) {
-                summaryText = t.summary_very_cold; colorClass = 'red-600';
-            } else if (tempDiff < -0.4) {
-                summaryText = t.summary_cold; colorClass = 'blue-600';
-            } else if (tempDiff < -0.1) {
-                summaryText = t.summary_cool; colorClass = 'cyan-500';
-            } else if (tempDiff <= 0.2) {
-                summaryText = t.summary_comfortable; colorClass = 'green-600';
-            } else if (tempDiff <= 0.5) {
-                summaryText = t.summary_warm; colorClass = 'yellow-500';
-            } else if (finalTemp <= 38.5) {
-                summaryText = t.summary_hot; colorClass = 'orange-500';
-            } else {
-                summaryText = t.summary_overheating; colorClass = 'red-600';
-            }
+            // The primary interpretation is the comfort score; avoid over-interpreting core temperature deltas.
+            let colorClass = 'green-600';
+            if (comfortScore < 80) colorClass = 'yellow-500';
+            if (comfortScore < 60) colorClass = 'orange-500';
+            if (comfortScore < 40) colorClass = 'red-600';
 
             const skinTempText = `<div class="text-base font-medium mt-1 text-orange-200">${t.final_skin_temp}: ${finalSkinTemp.toFixed(2)}°C</div>`;
-            dom.simSummary.innerHTML = `<div><span class="text-4xl">${finalTempStr}°C</span><span class="text-lg ml-3 font-medium">${summaryText}</span></div>${skinTempText}`;
+            dom.simSummary.innerHTML = `<div><span class="text-4xl">${finalTempStr}°C</span></div>${skinTempText}`;
 
             let styleClasses = '';
             if (currentTheme === 'light') {
@@ -2129,12 +2334,12 @@
                     final_net_rate: parseFloat(dom.detailNet.textContent.split(' / ')[0]),
                 },
                 average_heat_balance_watts: {
-                    metabolic_gain: lastSimulationResults.heatProductionWatts,
-                    solar_gain: lastSimulationResults.solarHeatGainWatts,
-                    respiratory_loss: lastSimulationResults.heatLossResp,
-                    dry_skin_loss: lastSimulationResults.heatLossDry,
-                    sweat_evaporation_loss: lastSimulationResults.sweatingHeatLoss,
-                    net_rate: lastSimulationResults.netRate,
+                    metabolic_gain: lastSimulationResults.averages?.heatProductionWatts ?? null,
+                    solar_gain: lastSimulationResults.averages?.solarHeatGainWatts ?? null,
+                    respiratory_loss: lastSimulationResults.averages?.heatLossResp ?? null,
+                    dry_skin_loss: lastSimulationResults.averages?.heatLossDry ?? null,
+                    sweat_evaporation_loss: lastSimulationResults.averages?.sweatingHeatLoss ?? null,
+                    net_rate: lastSimulationResults.averages?.netRate ?? null,
                 },
                 physiological_response_intensity_percent: {
                     shivering: shiveringIntensity,
@@ -2149,7 +2354,7 @@
         }
 
         function handleExportCsv() {
-            if (!lastSimulationResults) {
+            if (!lastSimulationResults || Object.keys(lastSimulationResults).length === 0) {
                 alert(currentLang === 'en' ? 'No simulation data to export.' : '没有可导出的仿真数据。');
                 return;
             }
@@ -2320,7 +2525,7 @@
             dom.humidity.value = inputs.relative_humidity_percent || '50';
             dom.solarLevel.value = inputs.solar_radiation_wm2 || '400';
             dom.activity.value = inputs.activity_met || '2.6';
-            dom.duration.value = inputs.duration_min || '30'; 
+            dom.duration.value = inputs.duration_min || '30';
 
             currentOutfit = newOutfit;
             updateOutfitUI();
@@ -2465,6 +2670,15 @@
                 themeLightIcon: document.getElementById('theme-light-icon'),
                 themeDarkIcon: document.getElementById('theme-dark-icon'),
                 themeToggle: document.getElementById('theme-toggle'),
+                jos3Panel: document.getElementById('jos3-panel'),
+                jos3SkinTable: document.getElementById('jos3-skin-table'),
+                jos3CoreTable: document.getElementById('jos3-core-table'),
+                jos3KeyFilter: document.getElementById('jos3-key-filter'),
+                jos3RawKey: document.getElementById('jos3-raw-key'),
+                jos3RawMode: document.getElementById('jos3-raw-mode'),
+                jos3Segment: document.getElementById('jos3-segment'),
+                jos3RawMeta: document.getElementById('jos3-raw-meta'),
+                jos3Chart: document.getElementById('jos3-chart'),
             };
 
             const savedState = restoreInputsFromSessionStorage();
@@ -2479,6 +2693,7 @@
             // Initialize language
             const savedLang = savedState?.lang;
             setLanguage(savedLang || navigator.language || navigator.userLanguage);
+            updateJos3Panel();
 
             // Event listeners
             dom.langSwitcher.addEventListener('click', () => {
@@ -2497,8 +2712,10 @@
             dom.editModalCloseBtn.addEventListener('click', closeEditModal);
             dom.importCsvBtn.addEventListener('click', handleImportCsv);
             dom.csvFileInput.addEventListener('change', handleFileSelect);
+            const noSimTriggerIds = new Set(['jos3-key-filter', 'jos3-raw-key', 'jos3-raw-mode', 'jos3-segment']);
             Object.values(dom).forEach(element => {
                 if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT')) {
+                    if (element.id && noSimTriggerIds.has(element.id)) return;
                     const eventHandler = () => {
                         triggerSimulation();
                         saveInputsToSessionStorage();
@@ -2507,6 +2724,17 @@
                     element.addEventListener('change', eventHandler);
                 }
             });
+
+            // JOS-3 viewer controls
+            if (dom.jos3KeyFilter) {
+                dom.jos3KeyFilter.addEventListener('input', () => {
+                    populateJos3ViewerOptions();
+                    renderJos3RawViewer();
+                });
+            }
+            if (dom.jos3RawKey) dom.jos3RawKey.addEventListener('change', renderJos3RawViewer);
+            if (dom.jos3RawMode) dom.jos3RawMode.addEventListener('change', renderJos3RawViewer);
+            if (dom.jos3Segment) dom.jos3Segment.addEventListener('change', renderJos3RawViewer);
             // Initial Run is triggered by setLanguage
 
             // Listen for system theme changes
