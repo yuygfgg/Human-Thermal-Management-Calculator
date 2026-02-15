@@ -8,13 +8,10 @@ Key features include a real-time dashboard with detailed multi-series charts, a 
 
 ### How to Use
 
-1. Start the server:
-   - `python3 jos3_server.py`
-2. Open:
-   - `http://127.0.0.1:8000/`
-3. Adjust parameters and build your outfit.
-4. Analyze the real-time simulation dashboard for detailed insights.
-5. Import or export full simulation reports via CSV.
+1. Open <https://calc.yuygfgg.xyz/>.
+2. Adjust parameters and build your outfit.
+3. Analyze the real-time simulation dashboard for detailed insights.
+4. Import or export full simulation reports via CSV.
 
 ### License
 
