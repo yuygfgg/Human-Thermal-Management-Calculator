@@ -568,6 +568,21 @@
             { key: 'RLeg', zh: '右小腿', en: 'Right Leg' },
             { key: 'RFoot', zh: '右脚', en: 'Right Foot' },
         ];
+        // Clothing clo uses merged (L/R symmetric) segments.
+        const clothingSegments = [
+            { key: 'Head', zh: '头', en: 'Head', area: 0.055 },
+            { key: 'Neck', zh: '颈', en: 'Neck', area: 0.015 },
+            { key: 'Chest', zh: '胸', en: 'Chest', area: 0.12 },
+            { key: 'Back', zh: '背', en: 'Back', area: 0.12 },
+            { key: 'Pelvis', zh: '骨盆', en: 'Pelvis', area: 0.11 },
+            { key: 'Shoulder', zh: '肩', en: 'Shoulder', area: 0.04 },
+            { key: 'Arm', zh: '上臂', en: 'Arm', area: 0.10 },
+            { key: 'Hand', zh: '手', en: 'Hand', area: 0.05 },
+            { key: 'Thigh', zh: '大腿', en: 'Thigh', area: 0.18 },
+            { key: 'Leg', zh: '小腿', en: 'Lower Leg', area: 0.14 },
+            { key: 'Foot', zh: '脚', en: 'Foot', area: 0.07 },
+        ];
+        const clothingSegmentKeys = clothingSegments.map(s => s.key);
         const translations = {
             en: {
                 page_title: "Human Thermal Management Calculator v0.2",
@@ -881,78 +896,78 @@
 
         const clothingData = {
             // Base Layer
-            "base_underwear": { name: "普通内衣裤", name_en: "Regular Underwear", regionalClo: { torso: 0.04, legs: 0.02 }, category: "cat_base" },
-            "base_sports_bra": { name: "运动内衣", name_en: "Sports Bra", regionalClo: { torso: 0.03 }, category: "cat_base" },
-            "base_t_shirt": { name: "棉质T恤", name_en: "Cotton T-shirt", regionalClo: { torso: 0.10, arms: 0.05 }, category: "cat_base" },
-            "base_synthetic_tshirt": { name: "速干T恤", name_en: "Synthetic T-shirt", regionalClo: { torso: 0.12, arms: 0.06 }, category: "cat_base" },
-            "base_tank_top": { name: "背心", name_en: "Tank Top", regionalClo: { torso: 0.06 }, category: "cat_base" },
-            "base_silk_long": { name: "真丝长内衣", name_en: "Silk Long Underwear", regionalClo: { torso: 0.10, arms: 0.08, legs: 0.10 }, category: "cat_base" },
-            "base_thermal_long": { name: "长袖保暖内衣", name_en: "Thermal Long Underwear", regionalClo: { torso: 0.25, arms: 0.20 }, category: "cat_base" },
+            "base_underwear": { name: "普通内衣裤", name_en: "Regular Underwear", segClo: { Pelvis: 0.04, Thigh: 0.02 }, category: "cat_base" },
+            "base_sports_bra": { name: "运动内衣", name_en: "Sports Bra", segClo: { Chest: 0.03, Back: 0.03 }, category: "cat_base" },
+            "base_t_shirt": { name: "棉质T恤", name_en: "Cotton T-shirt", segClo: { Chest: 0.10, Back: 0.10, Pelvis: 0.06, Shoulder: 0.03, Arm: 0.02 }, category: "cat_base" },
+            "base_synthetic_tshirt": { name: "速干T恤", name_en: "Synthetic T-shirt", segClo: { Chest: 0.12, Back: 0.12, Pelvis: 0.07, Shoulder: 0.04, Arm: 0.02 }, category: "cat_base" },
+            "base_tank_top": { name: "背心", name_en: "Tank Top", segClo: { Chest: 0.06, Back: 0.06, Pelvis: 0.03 }, category: "cat_base" },
+            "base_silk_long": { name: "真丝长内衣", name_en: "Silk Long Underwear", segClo: { Chest: 0.10, Back: 0.10, Pelvis: 0.10, Shoulder: 0.03, Arm: 0.08, Thigh: 0.10, Leg: 0.10 }, category: "cat_base" },
+            "base_thermal_long": { name: "长袖保暖内衣", name_en: "Thermal Long Underwear", segClo: { Chest: 0.25, Back: 0.25, Pelvis: 0.22, Shoulder: 0.06, Arm: 0.20, Thigh: 0.22, Leg: 0.22 }, category: "cat_base" },
             // Mid Layer
-            "mid_long_sleeve_shirt": { name: "长袖衬衫", name_en: "Long-sleeve Shirt", regionalClo: { torso: 0.22, arms: 0.14 }, category: "cat_mid" },
-            "mid_flannel_shirt": { name: "法兰绒衬衫", name_en: "Flannel Shirt", regionalClo: { torso: 0.30, arms: 0.20 }, category: "cat_mid" },
-            "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", regionalClo: { torso: 0.32, arms: 0.18 }, category: "cat_mid" },
-            "mid_sweater": { name: "毛衣", name_en: "Sweater", regionalClo: { torso: 0.37, arms: 0.24 }, category: "cat_mid" },
-            "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
-            "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", regionalClo: { head: 0.10, torso: 0.35, arms: 0.25 }, category: "cat_mid" },
-            "mid_fleece_vest": { name: "抓绒背心", name_en: "Fleece Vest", regionalClo: { torso: 0.30 }, category: "cat_mid" },
-            "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", regionalClo: { torso: 0.40, arms: 0.28 }, category: "cat_mid" },
-            "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", regionalClo: { torso: 0.38, arms: 0.26 }, category: "cat_mid" },
-            "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", regionalClo: { torso: 0.50, arms: 0.35 }, category: "cat_mid" },
+            "mid_long_sleeve_shirt": { name: "长袖衬衫", name_en: "Long-sleeve Shirt", segClo: { Chest: 0.22, Back: 0.22, Pelvis: 0.18, Shoulder: 0.05, Arm: 0.14 }, category: "cat_mid" },
+            "mid_flannel_shirt": { name: "法兰绒衬衫", name_en: "Flannel Shirt", segClo: { Chest: 0.30, Back: 0.30, Pelvis: 0.25, Shoulder: 0.07, Arm: 0.20 }, category: "cat_mid" },
+            "mid_turtleneck": { name: "高领衫", name_en: "Turtleneck", segClo: { Neck: 0.18, Chest: 0.32, Back: 0.32, Pelvis: 0.28, Shoulder: 0.06, Arm: 0.18 }, category: "cat_mid" },
+            "mid_sweater": { name: "毛衣", name_en: "Sweater", segClo: { Neck: 0.08, Chest: 0.37, Back: 0.37, Pelvis: 0.33, Shoulder: 0.08, Arm: 0.24 }, category: "cat_mid" },
+            "mid_cashmere_sweater": { name: "羊绒衫", name_en: "Cashmere Sweater", segClo: { Neck: 0.10, Chest: 0.40, Back: 0.40, Pelvis: 0.36, Shoulder: 0.10, Arm: 0.28 }, category: "cat_mid" },
+            "mid_hoodie": { name: "连帽卫衣", name_en: "Hoodie", segClo: { Head: 0.10, Neck: 0.06, Chest: 0.35, Back: 0.35, Pelvis: 0.30, Shoulder: 0.10, Arm: 0.25 }, category: "cat_mid" },
+            "mid_fleece_vest": { name: "抓绒背心", name_en: "Fleece Vest", segClo: { Chest: 0.30, Back: 0.30, Pelvis: 0.25, Neck: 0.04 }, category: "cat_mid" },
+            "mid_fleece_zipup": { name: "抓绒拉链衫", name_en: "Fleece Zip-up", segClo: { Neck: 0.06, Chest: 0.40, Back: 0.40, Pelvis: 0.35, Shoulder: 0.12, Arm: 0.28 }, category: "cat_mid" },
+            "mid_softshell_jacket": { name: "软壳夹克", name_en: "Softshell Jacket", segClo: { Neck: 0.05, Chest: 0.38, Back: 0.38, Pelvis: 0.33, Shoulder: 0.12, Arm: 0.26 }, category: "cat_mid" },
+            "mid_down_sweater": { name: "轻薄羽绒衫", name_en: "Light Down Sweater", segClo: { Neck: 0.06, Chest: 0.50, Back: 0.50, Pelvis: 0.45, Shoulder: 0.18, Arm: 0.35 }, category: "cat_mid" },
             // Outer Layer
-            "outer_skin_jacket": { name: "皮肤衣", name_en: "Sun Protection Hoodie", regionalClo: { head: 0.05, torso: 0.15, arms: 0.10 }, category: "cat_outer" },
-            "outer_cardigan": { name: "开衫", name_en: "Cardigan", regionalClo: { torso: 0.25, arms: 0.16 }, category: "cat_outer" },
-            "outer_blazer": { name: "西装外套", name_en: "Blazer", regionalClo: { torso: 0.35, arms: 0.22 }, category: "cat_outer" },
-            "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", regionalClo: { torso: 0.28, arms: 0.18 }, category: "cat_outer" },
-            "outer_leather_jacket": { name: "皮夹克", name_en: "Leather Jacket", regionalClo: { torso: 0.30, arms: 0.20 }, category: "cat_outer" },
-            "outer_windbreaker": { name: "风衣", name_en: "Windbreaker", regionalClo: { torso: 0.25, arms: 0.15, legs: 0.10 }, category: "cat_outer" },
-            "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", regionalClo: { head: 0.10, torso: 0.30, arms: 0.20 }, category: "cat_outer" },
-            "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", regionalClo: { torso: 0.55 }, category: "cat_outer" },
-            "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", regionalClo: { torso: 0.80, arms: 0.50, legs: 0.15 }, category: "cat_outer" },
-            "outer_duffle_coat": { name: "牛角扣大衣", name_en: "Duffle Coat", regionalClo: { head: 0.15, torso: 0.70, arms: 0.45, legs: 0.10 }, category: "cat_outer" },
-            "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", regionalClo: { head: 0.15, torso: 1.20, arms: 0.80 }, category: "cat_outer" },
-            "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", regionalClo: { head: 0.20, torso: 0.60, arms: 0.45 }, category: "cat_outer" },
-            "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", regionalClo: { head: 0.30, torso: 2.00, arms: 1.20, legs: 0.20 }, category: "cat_outer" },
-            "outer_cloak": { name: "斗篷/披风", name_en: "Cloak/Cape", regionalClo: { head: 0.05, torso: 0.45, arms: 0.15 }, category: "cat_outer" },
-            "outer_poncho": { name: "雨披", name_en: "Poncho", regionalClo: { head: 0.08, torso: 0.35, arms: 0.10 }, category: "cat_outer" },
+            "outer_skin_jacket": { name: "皮肤衣", name_en: "Sun Protection Hoodie", segClo: { Head: 0.05, Neck: 0.03, Chest: 0.15, Back: 0.15, Pelvis: 0.12, Shoulder: 0.05, Arm: 0.10 }, category: "cat_outer" },
+            "outer_cardigan": { name: "开衫", name_en: "Cardigan", segClo: { Neck: 0.04, Chest: 0.25, Back: 0.25, Pelvis: 0.22, Shoulder: 0.06, Arm: 0.16 }, category: "cat_outer" },
+            "outer_blazer": { name: "西装外套", name_en: "Blazer", segClo: { Neck: 0.05, Chest: 0.35, Back: 0.35, Pelvis: 0.30, Shoulder: 0.08, Arm: 0.22 }, category: "cat_outer" },
+            "outer_denim_jacket": { name: "牛仔夹克", name_en: "Denim Jacket", segClo: { Neck: 0.04, Chest: 0.28, Back: 0.28, Pelvis: 0.25, Shoulder: 0.06, Arm: 0.18 }, category: "cat_outer" },
+            "outer_leather_jacket": { name: "皮夹克", name_en: "Leather Jacket", segClo: { Neck: 0.05, Chest: 0.30, Back: 0.30, Pelvis: 0.27, Shoulder: 0.07, Arm: 0.20 }, category: "cat_outer" },
+            "outer_windbreaker": { name: "风衣", name_en: "Windbreaker", segClo: { Neck: 0.04, Chest: 0.25, Back: 0.25, Pelvis: 0.25, Shoulder: 0.05, Arm: 0.15, Thigh: 0.10 }, category: "cat_outer" },
+            "outer_rain_jacket": { name: "雨衣", name_en: "Rain Jacket", segClo: { Head: 0.10, Neck: 0.06, Chest: 0.30, Back: 0.30, Pelvis: 0.28, Shoulder: 0.08, Arm: 0.20 }, category: "cat_outer" },
+            "outer_down_vest": { name: "羽绒背心", name_en: "Down Vest", segClo: { Neck: 0.08, Chest: 0.55, Back: 0.55, Pelvis: 0.50 }, category: "cat_outer" },
+            "outer_wool_coat": { name: "羊毛大衣", name_en: "Wool Coat", segClo: { Neck: 0.10, Chest: 0.80, Back: 0.80, Pelvis: 0.80, Shoulder: 0.20, Arm: 0.50, Thigh: 0.15 }, category: "cat_outer" },
+            "outer_duffle_coat": { name: "牛角扣大衣", name_en: "Duffle Coat", segClo: { Head: 0.15, Neck: 0.08, Chest: 0.70, Back: 0.70, Pelvis: 0.70, Shoulder: 0.18, Arm: 0.45, Thigh: 0.10 }, category: "cat_outer" },
+            "outer_down_jacket": { name: "羽绒服", name_en: "Down Jacket", segClo: { Head: 0.15, Neck: 0.08, Chest: 1.20, Back: 1.20, Pelvis: 1.10, Shoulder: 0.30, Arm: 0.80 }, category: "cat_outer" },
+            "outer_hardshell_jacket": { name: "硬壳冲锋衣", name_en: "Hardshell Jacket", segClo: { Head: 0.20, Neck: 0.10, Chest: 0.60, Back: 0.60, Pelvis: 0.55, Shoulder: 0.15, Arm: 0.45 }, category: "cat_outer" },
+            "outer_expedition_parka": { name: "极地派克大衣", name_en: "Expedition Parka", segClo: { Head: 0.30, Neck: 0.15, Chest: 2.00, Back: 2.00, Pelvis: 1.90, Shoulder: 0.45, Arm: 1.20, Thigh: 0.20 }, category: "cat_outer" },
+            "outer_cloak": { name: "斗篷/披风", name_en: "Cloak/Cape", segClo: { Head: 0.05, Neck: 0.03, Chest: 0.45, Back: 0.45, Pelvis: 0.40, Shoulder: 0.10, Arm: 0.05 }, category: "cat_outer" },
+            "outer_poncho": { name: "雨披", name_en: "Poncho", segClo: { Head: 0.08, Neck: 0.04, Chest: 0.35, Back: 0.35, Pelvis: 0.30, Shoulder: 0.06, Arm: 0.03 }, category: "cat_outer" },
             // Bottoms
-            "pants_shorts": { name: "短裤", name_en: "Shorts", regionalClo: { legs: 0.08 }, category: "cat_bottoms" },
-            "pants_mini_skirt": { name: "迷你裙", name_en: "Mini Skirt", regionalClo: { legs: 0.05 }, category: "cat_bottoms" },
-            "pants_pleated_skirt": { name: "百褶裙", name_en: "Pleated Skirt", regionalClo: { legs: 0.15 }, category: "cat_bottoms" },
-            "pants_knee_length_skirt": { name: "及膝裙", name_en: "Knee-length Skirt", regionalClo: { legs: 0.20 }, category: "cat_bottoms" },
-            "pants_long_skirt": { name: "长裙", name_en: "Long Skirt", regionalClo: { legs: 0.28 }, category: "cat_bottoms" },
-            "pants_leggings": { name: "打底裤/紧身裤", name_en: "Leggings/Tights", regionalClo: { legs: 0.25 }, category: "cat_bottoms" },
-            "pants_trousers": { name: "西裤/休闲裤", name_en: "Trousers/Pants", regionalClo: { legs: 0.28 }, category: "cat_bottoms" },
-            "pants_jeans": { name: "牛仔裤", name_en: "Jeans", regionalClo: { legs: 0.32 }, category: "cat_bottoms" },
-            "pants_cargo_pants": { name: "工装裤", name_en: "Cargo Pants", regionalClo: { legs: 0.30 }, category: "cat_bottoms" },
-            "pants_sweatpants": { name: "运动裤", name_en: "Sweatpants", regionalClo: { legs: 0.30 }, category: "cat_bottoms" },
-            "pants_softshell_trousers": { name: "软壳裤", name_en: "Softshell Trousers", regionalClo: { legs: 0.50 }, category: "cat_bottoms" },
-            "pants_insulated": { name: "保暖裤", name_en: "Insulated Pants", regionalClo: { legs: 0.60 }, category: "cat_bottoms" },
-            "pants_ski": { name: "滑雪裤", name_en: "Ski Pants", regionalClo: { legs: 1.00 }, category: "cat_bottoms" },
+            "pants_shorts": { name: "短裤", name_en: "Shorts", segClo: { Thigh: 0.08 }, category: "cat_bottoms" },
+            "pants_mini_skirt": { name: "迷你裙", name_en: "Mini Skirt", segClo: { Thigh: 0.05 }, category: "cat_bottoms" },
+            "pants_pleated_skirt": { name: "百褶裙", name_en: "Pleated Skirt", segClo: { Thigh: 0.15, Leg: 0.05 }, category: "cat_bottoms" },
+            "pants_knee_length_skirt": { name: "及膝裙", name_en: "Knee-length Skirt", segClo: { Thigh: 0.20, Leg: 0.10 }, category: "cat_bottoms" },
+            "pants_long_skirt": { name: "长裙", name_en: "Long Skirt", segClo: { Thigh: 0.28, Leg: 0.22 }, category: "cat_bottoms" },
+            "pants_leggings": { name: "打底裤/紧身裤", name_en: "Leggings/Tights", segClo: { Thigh: 0.25, Leg: 0.25 }, category: "cat_bottoms" },
+            "pants_trousers": { name: "西裤/休闲裤", name_en: "Trousers/Pants", segClo: { Thigh: 0.28, Leg: 0.28 }, category: "cat_bottoms" },
+            "pants_jeans": { name: "牛仔裤", name_en: "Jeans", segClo: { Thigh: 0.32, Leg: 0.32 }, category: "cat_bottoms" },
+            "pants_cargo_pants": { name: "工装裤", name_en: "Cargo Pants", segClo: { Thigh: 0.30, Leg: 0.30 }, category: "cat_bottoms" },
+            "pants_sweatpants": { name: "运动裤", name_en: "Sweatpants", segClo: { Thigh: 0.30, Leg: 0.30 }, category: "cat_bottoms" },
+            "pants_softshell_trousers": { name: "软壳裤", name_en: "Softshell Trousers", segClo: { Thigh: 0.50, Leg: 0.50 }, category: "cat_bottoms" },
+            "pants_insulated": { name: "保暖裤", name_en: "Insulated Pants", segClo: { Thigh: 0.60, Leg: 0.60 }, category: "cat_bottoms" },
+            "pants_ski": { name: "滑雪裤", name_en: "Ski Pants", segClo: { Thigh: 1.00, Leg: 1.00 }, category: "cat_bottoms" },
             // Full Body
-            "full_dress": { name: "连衣裙", name_en: "Dress", regionalClo: { torso: 0.28, arms: 0.18, legs: 0.20 }, category: "cat_full" },
-            "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", regionalClo: { torso: 0.35, arms: 0.22, legs: 0.28 }, category: "cat_full" },
+            "full_dress": { name: "连衣裙", name_en: "Dress", segClo: { Chest: 0.28, Back: 0.28, Pelvis: 0.25, Shoulder: 0.06, Arm: 0.18, Thigh: 0.20, Leg: 0.08 }, category: "cat_full" },
+            "full_suit": { name: "西装(套装)", name_en: "Suit (Full)", segClo: { Chest: 0.35, Back: 0.35, Pelvis: 0.32, Shoulder: 0.08, Arm: 0.22, Thigh: 0.28, Leg: 0.28 }, category: "cat_full" },
             // Accessories
-            "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", regionalClo: { legs: 0.01, feet: 0.00 }, category: "cat_acc" },
-            "acc_tights": { name: "连裤袜", name_en: "Tights/Pantyhose", regionalClo: { legs: 0.08, feet: 0.01 }, category: "cat_acc" },
-            "acc_ankle_socks": { name: "船袜", name_en: "Ankle Socks", regionalClo: { feet: 0.03 }, category: "cat_acc" },
-            "acc_crew_socks": { name: "中筒袜", name_en: "Crew Socks", regionalClo: { feet: 0.04 }, category: "cat_acc" },
-            "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", regionalClo: { feet: 0.05, legs: 0.10 }, category: "cat_acc" },
-            "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", regionalClo: { feet: 0.05, legs: 0.12 }, category: "cat_acc" },
-            "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", regionalClo: { feet: 0.10 }, category: "cat_acc" },
-            "acc_sandals": { name: "凉鞋", name_en: "Sandals", regionalClo: { feet: 0.01 }, category: "cat_acc" },
-            "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", regionalClo: { feet: 0.05 }, category: "cat_acc" },
-            "acc_boots": { name: "靴子", name_en: "Boots", regionalClo: { feet: 0.12, legs: 0.06 }, category: "cat_acc" },
-            "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", regionalClo: { feet: 0.25, legs: 0.10 }, category: "cat_acc" },
-            "acc_leather_gloves": { name: "皮手套", name_en: "Leather Gloves", regionalClo: { hands: 0.15 }, category: "cat_acc" },
-            "acc_gloves": { name: "手套", name_en: "Gloves", regionalClo: { hands: 0.25 }, category: "cat_acc" },
-            "acc_mittens": { name: "连指厚手套", name_en: "Mittens", regionalClo: { hands: 0.40 }, category: "cat_acc" },
-            "acc_scarf": { name: "围巾", name_en: "Scarf", regionalClo: { torso: 0.20 }, respiratoryModifier: 0.25, category: "cat_acc" },
-            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", regionalClo: { torso: 0.18 }, respiratoryModifier: 0.30, category: "cat_acc" },
-            "acc_beanie": { name: "毛线帽", name_en: "Beanie", regionalClo: { head: 0.25 }, category: "cat_acc" },
-            "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", regionalClo: { head: 0.10 }, category: "cat_acc" },
-            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", regionalClo: { head: 0.40 }, respiratoryModifier: 0.50, category: "cat_acc" },
-            "acc_face_mask": { name: "口罩", name_en: "Face Mask", regionalClo: { head: 0.02 }, respiratoryModifier: 0.4, category: "cat_acc" },
+            "acc_fishnets": { name: "渔网袜", name_en: "Fishnet Stockings", segClo: { Thigh: 0.01, Leg: 0.01 }, category: "cat_acc" },
+            "acc_tights": { name: "连裤袜", name_en: "Tights/Pantyhose", segClo: { Pelvis: 0.02, Thigh: 0.08, Leg: 0.08, Foot: 0.01 }, category: "cat_acc" },
+            "acc_ankle_socks": { name: "船袜", name_en: "Ankle Socks", segClo: { Foot: 0.03 }, category: "cat_acc" },
+            "acc_crew_socks": { name: "中筒袜", name_en: "Crew Socks", segClo: { Foot: 0.04, Leg: 0.03 }, category: "cat_acc" },
+            "acc_knee_high_socks": { name: "及膝袜", name_en: "Knee-high Socks", segClo: { Foot: 0.05, Leg: 0.10 }, category: "cat_acc" },
+            "acc_over_the_knee_socks": { name: "过膝袜", name_en: "Over-the-knee Socks", segClo: { Foot: 0.05, Leg: 0.12, Thigh: 0.08 }, category: "cat_acc" },
+            "acc_wool_socks": { name: "羊毛袜", name_en: "Wool Socks", segClo: { Foot: 0.10, Leg: 0.04 }, category: "cat_acc" },
+            "acc_sandals": { name: "凉鞋", name_en: "Sandals", segClo: { Foot: 0.01 }, category: "cat_acc" },
+            "acc_shoes": { name: "普通鞋", name_en: "Regular Shoes", segClo: { Foot: 0.05 }, category: "cat_acc" },
+            "acc_boots": { name: "靴子", name_en: "Boots", segClo: { Foot: 0.12, Leg: 0.06 }, category: "cat_acc" },
+            "acc_winter_boots": { name: "雪地靴", name_en: "Winter Boots", segClo: { Foot: 0.25, Leg: 0.10 }, category: "cat_acc" },
+            "acc_leather_gloves": { name: "皮手套", name_en: "Leather Gloves", segClo: { Hand: 0.15 }, category: "cat_acc" },
+            "acc_gloves": { name: "手套", name_en: "Gloves", segClo: { Hand: 0.25 }, category: "cat_acc" },
+            "acc_mittens": { name: "连指厚手套", name_en: "Mittens", segClo: { Hand: 0.40 }, category: "cat_acc" },
+            "acc_scarf": { name: "围巾", name_en: "Scarf", segClo: { Neck: 0.20 }, respiratoryModifier: 0.25, category: "cat_acc" },
+            "acc_neck_gaiter": { name: "护颈/魔术头巾", name_en: "Neck Gaiter", segClo: { Neck: 0.18 }, respiratoryModifier: 0.30, category: "cat_acc" },
+            "acc_beanie": { name: "毛线帽", name_en: "Beanie", segClo: { Head: 0.25 }, category: "cat_acc" },
+            "acc_earmuffs": { name: "耳罩", name_en: "Earmuffs", segClo: { Head: 0.10 }, category: "cat_acc" },
+            "acc_balaclava": { name: "巴拉克拉法帽", name_en: "Balaclava", segClo: { Head: 0.40, Neck: 0.25 }, respiratoryModifier: 0.50, category: "cat_acc" },
+            "acc_face_mask": { name: "口罩", name_en: "Face Mask", segClo: { Head: 0.02 }, respiratoryModifier: 0.4, category: "cat_acc" },
         };
         const thicknessModifiers = {
             thin: { value: 0.75, key: 'mod_thin' },
@@ -1186,7 +1201,28 @@
                 if (inputs.duration) dom.duration.value = inputs.duration;
 
                 if (inputs.outfit && Array.isArray(inputs.outfit)) {
-                    currentOutfit = inputs.outfit;
+                    currentOutfit = inputs.outfit
+                        .map(saved => {
+                            if (!saved || typeof saved !== 'object') return null;
+                            const itemId = saved.itemId;
+                            const preset = itemId ? clothingData[itemId] : null;
+                            if (!preset) return null;
+
+                            const out = {
+                                itemId: itemId,
+                                modifier: Number.isFinite(saved.modifier) ? saved.modifier : 1.0,
+                                ...JSON.parse(JSON.stringify(preset)),
+                            };
+                            // Keep user edits to per-segment clo (merged segments).
+                            if (saved.segClo && typeof saved.segClo === 'object') {
+                                out.segClo = saved.segClo;
+                            }
+                            if (saved.respiratoryModifier !== undefined) {
+                                out.respiratoryModifier = saved.respiratoryModifier;
+                            }
+                            return out;
+                        })
+                        .filter(Boolean);
                 }
 
                 return {
@@ -1327,47 +1363,73 @@
             triggerSimulation();
         }
 
-        function calculateRegionalClo() {
+        function calculateEffectiveSegmentClo() {
             const LAYERING_EFFICIENCY = 0.70;
-            const regionalClo = {};
-            for (const regionKey in bodyRegions) {
-                const layersForRegion = currentOutfit
-                    .filter(item => item.regionalClo.hasOwnProperty(regionKey))
+            const eff = {};
+
+            clothingSegmentKeys.forEach(segKey => {
+                const layers = currentOutfit
                     .map(item => {
-                        const baseClo = item.regionalClo[regionKey];
+                        const base = (item.segClo && item.segClo[segKey]) ? item.segClo[segKey] : 0;
                         const modifier = item.modifier || 1.0;
-                        return baseClo * modifier;
+                        return base * modifier;
                     })
+                    .filter(v => v > 0)
                     .sort((a, b) => b - a);
-                let effectiveClo = 0, efficiency = 1.0;
-                for (const layerClo of layersForRegion) {
+
+                let effectiveClo = 0;
+                let efficiency = 1.0;
+                for (const layerClo of layers) {
                     effectiveClo += layerClo * efficiency;
                     efficiency *= LAYERING_EFFICIENCY;
                 }
-                regionalClo[regionKey] = effectiveClo;
-            }
-            return regionalClo;
+                eff[segKey] = effectiveClo;
+            });
+
+            return eff;
+        }
+
+        function calculateIcl17() {
+            const eff = calculateEffectiveSegmentClo();
+            return [
+                eff.Head || 0,   // Head
+                eff.Neck || 0,   // Neck
+                eff.Chest || 0,  // Chest
+                eff.Back || 0,   // Back
+                eff.Pelvis || 0, // Pelvis
+                eff.Shoulder || 0, // LShoulder
+                eff.Arm || 0,      // LArm
+                eff.Hand || 0,     // LHand
+                eff.Shoulder || 0, // RShoulder
+                eff.Arm || 0,      // RArm
+                eff.Hand || 0,     // RHand
+                eff.Thigh || 0,    // LThigh
+                eff.Leg || 0,      // LLeg
+                eff.Foot || 0,     // LFoot
+                eff.Thigh || 0,    // RThigh
+                eff.Leg || 0,      // RLeg
+                eff.Foot || 0,     // RFoot
+            ];
         }
 
         function calculateTotalClothingClo() {
-            const regionalClo = calculateRegionalClo();
+            const effSeg = calculateEffectiveSegmentClo();
             let weightedClo = 0;
             let simpleSumClo = 0;
 
             currentOutfit.forEach(item => {
                 const modifier = item.modifier || 1.0;
-                // Sum up the clo values for all regions covered by the item
-                for (const region in item.regionalClo) {
-                    if (item.regionalClo.hasOwnProperty(region)) {
-                        simpleSumClo += item.regionalClo[region] * modifier;
+                const segClo = item.segClo || {};
+                for (const k in segClo) {
+                    if (segClo.hasOwnProperty(k)) {
+                        simpleSumClo += (segClo[k] || 0) * modifier;
                     }
                 }
             });
 
-            for (const regionKey in regionalClo) {
-                const areaFraction = bodyRegions[regionKey] || 0;
-                weightedClo += regionalClo[regionKey] * areaFraction;
-            }
+            clothingSegments.forEach(seg => {
+                weightedClo += (effSeg[seg.key] || 0) * (seg.area || 0);
+            });
 
             dom.totalClo.textContent = `${simpleSumClo.toFixed(2)} Clo`;
             if (dom.effectiveClo) {
@@ -1396,7 +1458,7 @@
             const mediumThermalConductivity = isFinite(mediumK) && mediumK > 0 ? mediumK : 0.026;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
-            const regionalClo = calculateRegionalClo();
+            const icl17 = calculateIcl17();
 
             const requestId = ++lastSimRequestId;
             try {
@@ -1417,7 +1479,7 @@
                         activity_met: initialMetValue,
                         duration_min: durationMins,
                         posture: dom.activity.options[dom.activity.selectedIndex].dataset.posture || 'standing',
-                        regional_clo: regionalClo,
+                        icl17: icl17,
                         // TODO: JOS3 does not take this into account.
                         respiratory_modifier: totalRespiratoryModifier,
                         effective_clo: clothingClo,
@@ -2323,7 +2385,7 @@
                 duration_min: parseInt(dom.duration.value),
                 outfit: currentOutfit.map(item => ({
                     name_en: item.name_en,
-                    regionalClo: item.regionalClo,
+                    segClo: item.segClo,
                     thickness_modifier: item.modifier,
                     thickness_modifier_text: getModifierTextEn(item.modifier),
                 })),
@@ -2395,8 +2457,8 @@
                         csvRows.push(`"  ${index + 1}: name_en","${item.name_en}"`);
                         csvRows.push(`"  ${index + 1}: thickness_modifier","${item.thickness_modifier}"`);
                         csvRows.push(`"  ${index + 1}: thickness_modifier_text","${item.thickness_modifier_text}"`);
-                        Object.entries(item.regionalClo).forEach(([region, clo]) => {
-                            csvRows.push(`"    - ${region} Clo","${clo}"`);
+                        Object.entries(item.segClo || {}).forEach(([seg, clo]) => {
+                            csvRows.push(`"    - ${seg} Clo","${clo}"`);
                         });
                     });
                 } else {
@@ -2666,17 +2728,16 @@
             dom.editModalItemName.textContent = name;
             dom.editModalBody.innerHTML = '';
 
-            const regionOrder = ['head', 'torso', 'arms', 'hands', 'legs', 'feet'];
-
-            regionOrder.forEach(regionKey => {
-                const value = item.regionalClo[regionKey] || 0;
-                const regionName = t[`region_${regionKey}`] || regionKey;
+            clothingSegments.forEach(seg => {
+                const segKey = seg.key;
+                const value = (item.segClo && item.segClo[segKey]) ? item.segClo[segKey] : 0;
+                const segName = currentLang === 'en' ? seg.en : seg.zh;
 
                 const inputGroup = document.createElement('div');
                 inputGroup.className = 'grid grid-cols-2 items-center gap-4';
                 inputGroup.innerHTML = `
-                    <label for="edit-clo-${regionKey}" class="text-sm font-medium text-gray-300 justify-self-start">${regionName}</label>
-                    <input type="number" id="edit-clo-${regionKey}" value="${value.toFixed(3)}" step="0.01" min="0" class="input-field">
+                    <label for="edit-clo-${segKey}" class="text-sm font-medium text-gray-300 justify-self-start">${segName}</label>
+                    <input type="number" id="edit-clo-${segKey}" value="${value.toFixed(3)}" step="0.01" min="0" class="input-field">
                 `;
                 dom.editModalBody.appendChild(inputGroup);
             });
@@ -2727,15 +2788,16 @@
             if (currentEditIndex === -1) return;
 
             const item = currentOutfit[currentEditIndex];
-            const regionOrder = ['head', 'torso', 'arms', 'hands', 'legs', 'feet'];
+            if (!item.segClo || typeof item.segClo !== 'object') item.segClo = {};
 
-            regionOrder.forEach(regionKey => {
-                const input = document.getElementById(`edit-clo-${regionKey}`);
+            clothingSegmentKeys.forEach(segKey => {
+                const input = document.getElementById(`edit-clo-${segKey}`);
+                if (!input) return;
                 const value = parseFloat(input.value);
                 if (!isNaN(value) && value > 0) {
-                    item.regionalClo[regionKey] = value;
+                    item.segClo[segKey] = value;
                 } else {
-                    delete item.regionalClo[regionKey];
+                    delete item.segClo[segKey];
                 }
             });
 

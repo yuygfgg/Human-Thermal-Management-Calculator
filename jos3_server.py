@@ -69,6 +69,7 @@ def _patch_jos3_shivering() -> None:
 
 _patch_jos3_shivering()
 
+
 def _patch_jos3_fixed_hc() -> None:
     """Scale JOS-3 convective coefficient by a per-request medium conductivity factor.
 
@@ -187,39 +188,59 @@ def _body_fat_percent(
     return _clamp(float(fat), 3.0, 60.0)
 
 
-def _regional_clo_to_icl17(regional_clo: Dict[str, float]) -> np.ndarray:
-    # 17 segments in JOS-3: Head, Neck, Chest, Back, Pelvis,
-    # LShoulder, LArm, LHand, RShoulder, RArm, RHand,
-    # LThigh, LLeg, LFoot, RThigh, RLeg, RFoot
-    h = float(regional_clo.get("head", 0.0) or 0.0)
-    t = float(regional_clo.get("torso", 0.0) or 0.0)
-    a = float(regional_clo.get("arms", 0.0) or 0.0)
-    ha = float(regional_clo.get("hands", 0.0) or 0.0)
-    l = float(regional_clo.get("legs", 0.0) or 0.0)
-    f = float(regional_clo.get("feet", 0.0) or 0.0)
+def _parse_icl17(payload: Dict[str, Any]) -> np.ndarray:
+    icl17 = payload.get("icl17")
+    if not isinstance(icl17, (list, tuple, np.ndarray)) or len(icl17) != 17:
+        raise ValueError("icl17 must be a 17-length array in JOS-3 segment order")
 
-    return np.array(
-        [
-            h,  # Head
-            h,  # Neck
-            t,  # Chest
-            t,  # Back
-            t,  # Pelvis
-            a,  # LShoulder
-            a,  # LArm
-            ha,  # LHand
-            a,  # RShoulder
-            a,  # RArm
-            ha,  # RHand
-            l,  # LThigh
-            l,  # LLeg
-            f,  # LFoot
-            l,  # RThigh
-            l,  # RLeg
-            f,  # RFoot
-        ],
-        dtype=float,
+    out = []
+    for v in icl17:
+        try:
+            f = float(0.0 if v is None else v)
+        except (TypeError, ValueError):
+            f = 0.0
+        if not math.isfinite(f) or f < 0.0:
+            f = 0.0
+        out.append(f)
+    return np.asarray(out, dtype=float)
+
+
+def _icl17_to_regional_clo(icl17: np.ndarray) -> Dict[str, float]:
+    a_head, a_neck = 0.055, 0.015
+    a_chest, a_back, a_pelvis = 0.12, 0.12, 0.11
+    a_shoulder, a_arm = 0.04, 0.10
+    a_thigh, a_leg = 0.18, 0.14
+
+    head = float(icl17[0])
+    neck = float(icl17[1])
+    chest = float(icl17[2])
+    back = float(icl17[3])
+    pelvis = float(icl17[4])
+
+    shoulder = 0.5 * (float(icl17[5]) + float(icl17[8]))
+    arm = 0.5 * (float(icl17[6]) + float(icl17[9]))
+    hand = 0.5 * (float(icl17[7]) + float(icl17[10]))
+
+    thigh = 0.5 * (float(icl17[11]) + float(icl17[14]))
+    leg = 0.5 * (float(icl17[12]) + float(icl17[15]))
+    foot = 0.5 * (float(icl17[13]) + float(icl17[16]))
+
+    # Area-weighted averages within each coarse region.
+    head_reg = (head * a_head + neck * a_neck) / (a_head + a_neck)
+    torso_reg = (chest * a_chest + back * a_back + pelvis * a_pelvis) / (
+        a_chest + a_back + a_pelvis
     )
+    arms_reg = (shoulder * a_shoulder + arm * a_arm) / (a_shoulder + a_arm)
+    legs_reg = (thigh * a_thigh + leg * a_leg) / (a_thigh + a_leg)
+
+    return {
+        "head": float(head_reg),
+        "torso": float(torso_reg),
+        "arms": float(arms_reg),
+        "hands": float(hand),
+        "legs": float(legs_reg),
+        "feet": float(foot),
+    }
 
 
 def _sum_segments(d: Dict[str, List[float]], prefix: str) -> List[float]:
@@ -285,9 +306,8 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     if posture not in ("standing", "sitting", "lying"):
         posture = "standing"
 
-    regional_clo = payload.get("regional_clo") or {}
-    if not isinstance(regional_clo, dict):
-        regional_clo = {}
+    icl17 = _parse_icl17(payload)
+    regional_clo = _icl17_to_regional_clo(icl17)
 
     # Solar: approximate by raising mean radiant temperature by an equivalent delta.
     delta_tr_c = (solar_wm2 * SOLAR_EFFECTIVE_FACTOR) / HR_W_M2K
@@ -316,7 +336,7 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     model.Va = wind_ms
     model.posture = posture
 
-    model.Icl = _regional_clo_to_icl17(regional_clo)
+    model.Icl = np.asarray(icl17, dtype=float)
 
     # UI uses met (1 met = 58.2 W/m2). JOS3 uses PAR as MetabolicRate/BMR.
     desired_w_m2 = met * 58.2
@@ -668,6 +688,9 @@ class Handler(BaseHTTPRequestHandler):
             result = simulate_jos3(payload)
         except KeyError as e:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"missing_field: {e}"})
+            return
+        except ValueError as e:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"invalid_field: {e}"})
             return
         except Exception as e:
             self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": str(e)})
