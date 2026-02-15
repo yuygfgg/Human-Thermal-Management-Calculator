@@ -9,7 +9,7 @@ Key features include a real-time dashboard with detailed multi-series charts, a 
 ### How to Use
 
 1. Start the server:
-   - `/Users/a1/miniconda/bin/python jos3_server.py`
+   - `python3 jos3_server.py`
 2. Open:
    - `http://127.0.0.1:8000/`
 3. Adjust parameters and build your outfit.
