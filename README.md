@@ -13,6 +13,27 @@ Key features include a real-time dashboard with detailed multi-series charts, a 
 3. Analyze the real-time simulation dashboard for detailed insights.
 4. Import or export full simulation reports via CSV.
 
+### Architecture
+
+The calculator runs the JOS-3 model in the browser.  Pyodide provides a pinned
+CPython WebAssembly runtime, NumPy provides the numerical operations, and
+`simulation-worker.js` runs the calculation in a Web Worker.  The page does not
+require a Python server or an API endpoint.
+
+The JOS-3 wheel is vendored at
+`vendor/jos3-0.5.0-py3-none-any.whl`.  The wheel is distributed under the MIT
+license.  Pyodide is loaded from its pinned CDN release at runtime.
+
+### Local Development
+
+Use any static HTTP server. For example:
+
+```bash
+python3 -m http.server 8000
+```
+
+Open <http://127.0.0.1:8000/>.
+
 ### License
 
 This project is released under the terms of the **GNU Affero General Public License, version&nbsp;3.0** (AGPL-3.0) or (at your option) any later version.

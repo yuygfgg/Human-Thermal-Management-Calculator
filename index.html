@@ -406,6 +406,7 @@
                             <div id="simulation-summary"
                                 class="text-4xl font-bold p-3 rounded-lg h-24 flex items-center justify-center transition-all duration-500">
                             </div>
+                            <p id="simulation-engine-status" class="text-xs text-gray-400 mt-2 min-h-4" aria-live="polite"></p>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-6">
@@ -623,6 +624,10 @@
                 current_outfit: "Current Outfit",
                 empty_outfit: "Empty...",
                 dashboard_title: "Real-time Physiological Simulation Dashboard",
+                simulation_engine_loading: "Loading local simulation engine...",
+                simulation_engine_ready: "Local simulation engine ready",
+                simulation_running: "Running simulation...",
+                simulation_engine_error: "Local simulation engine failed",
                 core_temp_prediction: "Predicted Core Temperature Change",
                 total_clo: "Total Clothing Insulation (Sum)",
                 effective_clo: "Effective Clothing Insulation",
@@ -645,7 +650,7 @@
                 jos3_mode_single: "Single series",
                 jos3_mode_all_segments: "All segments (if applicable)",
                 jos3_segment: "Segment",
-                jos3_no_data: "No JOS-3 data (start the Python backend).",
+                jos3_no_data: "No JOS-3 data yet.",
                 heat_gain: "Heat Gain",
                 metabolic_gain: "Metabolic Heat",
                 solar_gain: "Solar Radiation Gain",
@@ -777,6 +782,10 @@
                 current_outfit: "当前穿搭清单",
                 empty_outfit: "空空如也...",
                 dashboard_title: "实时生理仿真仪表盘",
+                simulation_engine_loading: "正在加载引擎...",
+                simulation_engine_ready: "引擎已就绪",
+                simulation_running: "正在运行模拟...",
+                simulation_engine_error: "引擎加载失败",
                 core_temp_prediction: "预测核心体温变化",
                 total_clo: "衣物总隔热值（累加）",
                 effective_clo: "加权有效隔热值",
@@ -799,7 +808,7 @@
                 jos3_mode_single: "单条曲线",
                 jos3_mode_all_segments: "全分区（若适用）",
                 jos3_segment: "分区",
-                jos3_no_data: "没有 JOS-3 数据（请启动 Python 后端）。",
+                jos3_no_data: "暂无 JOS-3 数据。",
                 heat_gain: "热量增益",
                 metabolic_gain: "代谢产热",
                 solar_gain: "太阳辐射增益",
@@ -1068,6 +1077,56 @@
         let currentTheme = 'dark';
         let userHasSetTheme = false;
         let dom;
+        let simulationWorker = null;
+        let simulationWorkerStatus = 'idle';
+
+        function updateSimulationEngineStatus(status, detail = '') {
+            simulationWorkerStatus = status;
+            if (!dom?.simulationEngineStatus) return;
+            const t = translations[currentLang] || translations.en;
+            const labels = {
+                loading: t.simulation_engine_loading,
+                ready: t.simulation_engine_ready,
+                running: t.simulation_running,
+                error: t.simulation_engine_error,
+            };
+            dom.simulationEngineStatus.textContent = labels[status] || detail || '';
+            dom.simulationEngineStatus.className = status === 'error'
+                ? 'text-xs text-red-400 mt-2 min-h-4'
+                : 'text-xs text-gray-400 mt-2 min-h-4';
+        }
+
+        function initializeSimulationWorker() {
+            if (simulationWorker) return simulationWorker;
+            try {
+                simulationWorker = new Worker(new URL('simulation-worker.js', document.baseURI));
+                simulationWorker.addEventListener('message', event => {
+                    const message = event.data || {};
+                    if (message.type === 'status') {
+                        updateSimulationEngineStatus(message.status, message.detail);
+                        return;
+                    }
+                    if (message.type === 'error') {
+                        if (message.id !== lastSimRequestId) return;
+                        console.error('Local simulation failed:', message.error);
+                        updateSimulationEngineStatus('error', message.error);
+                        return;
+                    }
+                    if (message.type !== 'result' || message.id !== lastSimRequestId) return;
+                    lastSimulationResults = message.result;
+                    updateSimulationEngineStatus('ready');
+                    updateUIFromResults();
+                });
+                simulationWorker.addEventListener('error', event => {
+                    console.error('Simulation worker failed:', event.message || event.error);
+                    updateSimulationEngineStatus('error', event.message || 'Worker error');
+                });
+            } catch (error) {
+                console.error('Could not create simulation worker:', error);
+                updateSimulationEngineStatus('error', error.message);
+            }
+            return simulationWorker;
+        }
 
         function detectSystemTheme() {
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -1461,44 +1520,33 @@
             const icl17 = calculateIcl17();
 
             const requestId = ++lastSimRequestId;
-            try {
-                const resp = await fetch('/api/simulate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sex: gender,
-                        height_cm: heightCm,
-                        weight_kg: weightKg,
-                        age_years: age,
-                        base_core_temp_c: coreTemp,
-                        air_temp_c: tempC,
-                        wind_speed_ms: windMs,
-                        rh_percent: humidityPercent,
-                        medium_thermal_conductivity_w_mk: mediumThermalConductivity,
-                        solar_radiation_wm2: solarRad,
-                        activity_met: initialMetValue,
-                        duration_min: durationMins,
-                        posture: dom.activity.options[dom.activity.selectedIndex].dataset.posture || 'standing',
-                        icl17: icl17,
-                        // TODO: JOS3 does not take this into account.
-                        respiratory_modifier: totalRespiratoryModifier,
-                        effective_clo: clothingClo,
-                    }),
-                });
+            const worker = initializeSimulationWorker();
+            if (!worker) return;
 
-                if (requestId !== lastSimRequestId) return; // Drop stale responses.
-
-                const data = await resp.json();
-                if (!resp.ok) {
-                    throw new Error(data && data.error ? data.error : `HTTP ${resp.status}`);
-                }
-
-                lastSimulationResults = data;
-                updateUIFromResults();
-            } catch (e) {
-                // Keep it quiet on transient errors during typing/scrolling.
-                console.warn('Simulation failed:', e);
-            }
+            updateSimulationEngineStatus('running');
+            worker.postMessage({
+                type: 'simulate',
+                id: requestId,
+                payload: {
+                    sex: gender,
+                    height_cm: heightCm,
+                    weight_kg: weightKg,
+                    age_years: age,
+                    base_core_temp_c: coreTemp,
+                    air_temp_c: tempC,
+                    wind_speed_ms: windMs,
+                    rh_percent: humidityPercent,
+                    medium_thermal_conductivity_w_mk: mediumThermalConductivity,
+                    solar_radiation_wm2: solarRad,
+                    activity_met: initialMetValue,
+                    duration_min: durationMins,
+                    posture: dom.activity.options[dom.activity.selectedIndex].dataset.posture || 'standing',
+                    icl17,
+                    // TODO: JOS3 does not take this into account.
+                    respiratory_modifier: totalRespiratoryModifier,
+                    effective_clo: clothingClo,
+                },
+            });
         }
 
         function updateUIFromResults() {
@@ -2828,6 +2876,7 @@
                 chart: document.getElementById('simulation-chart'),
                 hoverLabel: document.getElementById('hover-label'),
                 simSummary: document.getElementById('simulation-summary'),
+                simulationEngineStatus: document.getElementById('simulation-engine-status'),
                 physiologyStatusText: document.getElementById('physiology-status-text'),
                 coreTemp: document.getElementById('core-temp'),
                 detailMetabolic: document.getElementById('detail-metabolic'), detailSolar: document.getElementById('detail-solar'), detailRespiratory: document.getElementById('detail-respiratory'), detailDry: document.getElementById('detail-dry'), detailSweat: document.getElementById('detail-sweat'), detailNet: document.getElementById('detail-net'), detailShivering: document.getElementById('detail-shivering'), detailSweating: document.getElementById('detail-sweating'),
