@@ -548,6 +548,7 @@
         </div>
     </div>
 
+    <script src="clothing-insulation.js"></script>
     <script>
         const bodyRegions = { head: 0.07, torso: 0.35, arms: 0.14, hands: 0.05, legs: 0.32, feet: 0.07 };
         const jos3Segments = [
@@ -629,8 +630,8 @@
                 simulation_running: "Running simulation...",
                 simulation_engine_error: "Local simulation engine failed",
                 core_temp_prediction: "Predicted Core Temperature Change",
-                total_clo: "Total Clothing Insulation (Sum)",
-                effective_clo: "Effective Clothing Insulation",
+                total_clo: "Individual Garment Insulation Sum (ΣIclu)",
+                effective_clo: "ISO 9920 Ensemble Insulation",
                 physiological_status: "Physiological Response",
                 status_stable: "Physiologically Stable",
                 detailed_status_title: "Detailed Final Status",
@@ -787,8 +788,8 @@
                 simulation_running: "正在运行模拟...",
                 simulation_engine_error: "引擎加载失败",
                 core_temp_prediction: "预测核心体温变化",
-                total_clo: "衣物总隔热值（累加）",
-                effective_clo: "加权有效隔热值",
+                total_clo: "单件衣物隔热值之和（ΣIclu）",
+                effective_clo: "ISO 9920 衣着组合隔热值",
                 physiological_status: "生理反应状态",
                 status_stable: "生理状态稳定",
                 detailed_status_title: "详细最终状态",
@@ -1422,79 +1423,40 @@
             triggerSimulation();
         }
 
-        function calculateEffectiveSegmentClo() {
-            const LAYERING_EFFICIENCY = 0.70;
-            const eff = {};
-
-            clothingSegmentKeys.forEach(segKey => {
-                const layers = currentOutfit
-                    .map(item => {
-                        const base = (item.segClo && item.segClo[segKey]) ? item.segClo[segKey] : 0;
-                        const modifier = item.modifier || 1.0;
-                        return base * modifier;
-                    })
-                    .filter(v => v > 0)
-                    .sort((a, b) => b - a);
-
-                let effectiveClo = 0;
-                let efficiency = 1.0;
-                for (const layerClo of layers) {
-                    effectiveClo += layerClo * efficiency;
-                    efficiency *= LAYERING_EFFICIENCY;
-                }
-                eff[segKey] = effectiveClo;
-            });
-
-            return eff;
+        function calculateClothingInsulation() {
+            return ClothingInsulation.calculateIso9920Insulation(
+                currentOutfit,
+                clothingSegments,
+            );
         }
 
-        function calculateIcl17() {
-            const eff = calculateEffectiveSegmentClo();
+        function calculateIcl17(regionalClo) {
             return [
-                eff.Head || 0,   // Head
-                eff.Neck || 0,   // Neck
-                eff.Chest || 0,  // Chest
-                eff.Back || 0,   // Back
-                eff.Pelvis || 0, // Pelvis
-                eff.Shoulder || 0, // LShoulder
-                eff.Arm || 0,      // LArm
-                eff.Hand || 0,     // LHand
-                eff.Shoulder || 0, // RShoulder
-                eff.Arm || 0,      // RArm
-                eff.Hand || 0,     // RHand
-                eff.Thigh || 0,    // LThigh
-                eff.Leg || 0,      // LLeg
-                eff.Foot || 0,     // LFoot
-                eff.Thigh || 0,    // RThigh
-                eff.Leg || 0,      // RLeg
-                eff.Foot || 0,     // RFoot
+                regionalClo.Head || 0,   // Head
+                regionalClo.Neck || 0,   // Neck
+                regionalClo.Chest || 0,  // Chest
+                regionalClo.Back || 0,   // Back
+                regionalClo.Pelvis || 0, // Pelvis
+                regionalClo.Shoulder || 0, // LShoulder
+                regionalClo.Arm || 0,      // LArm
+                regionalClo.Hand || 0,     // LHand
+                regionalClo.Shoulder || 0, // RShoulder
+                regionalClo.Arm || 0,      // RArm
+                regionalClo.Hand || 0,     // RHand
+                regionalClo.Thigh || 0,    // LThigh
+                regionalClo.Leg || 0,      // LLeg
+                regionalClo.Foot || 0,     // LFoot
+                regionalClo.Thigh || 0,    // RThigh
+                regionalClo.Leg || 0,      // RLeg
+                regionalClo.Foot || 0,     // RFoot
             ];
         }
 
-        function calculateTotalClothingClo() {
-            const effSeg = calculateEffectiveSegmentClo();
-            let weightedClo = 0;
-            let simpleSumClo = 0;
-
-            currentOutfit.forEach(item => {
-                const modifier = item.modifier || 1.0;
-                const segClo = item.segClo || {};
-                for (const k in segClo) {
-                    if (segClo.hasOwnProperty(k)) {
-                        simpleSumClo += (segClo[k] || 0) * modifier;
-                    }
-                }
-            });
-
-            clothingSegments.forEach(seg => {
-                weightedClo += (effSeg[seg.key] || 0) * (seg.area || 0);
-            });
-
-            dom.totalClo.textContent = `${simpleSumClo.toFixed(2)} Clo`;
+        function updateClothingInsulationDisplay(insulation) {
+            dom.totalClo.textContent = `${insulation.garmentInsulationSumClo.toFixed(2)} Clo`;
             if (dom.effectiveClo) {
-                dom.effectiveClo.textContent = `${weightedClo.toFixed(2)} Clo`;
+                dom.effectiveClo.textContent = `${insulation.ensembleInsulationClo.toFixed(2)} Clo`;
             }
-            return weightedClo;
         }
 
         async function runSimulation() {
@@ -1506,7 +1468,9 @@
 
             if (isNaN(heightCm) || isNaN(weightKg) || isNaN(age) || isNaN(coreTemp) || heightCm <= 0 || weightKg <= 0 || age <= 0) return;
 
-            const clothingClo = calculateTotalClothingClo();
+            const clothingInsulation = calculateClothingInsulation();
+            updateClothingInsulationDisplay(clothingInsulation);
+            const clothingClo = clothingInsulation.ensembleInsulationClo;
             const totalRespiratoryModifier = currentOutfit.reduce((max, item) => {
                 return item.respiratoryModifier && item.respiratoryModifier > max ? item.respiratoryModifier : max;
             }, 0);
@@ -1517,7 +1481,7 @@
             const mediumThermalConductivity = isFinite(mediumK) && mediumK > 0 ? mediumK : 0.026;
 
             if (isNaN(humidityPercent) || humidityPercent < 0 || humidityPercent > 100) return;
-            const icl17 = calculateIcl17();
+            const icl17 = calculateIcl17(clothingInsulation.regionalClo);
 
             const requestId = ++lastSimRequestId;
             const worker = initializeSimulationWorker();
@@ -2443,8 +2407,8 @@
             const sweatingIntensity = parseFloat(dom.detailSweating.textContent);
 
             const outputs = {
-                total_clo_sum: parseFloat(dom.totalClo.textContent),
-                effective_clo_weighted: parseFloat(dom.effectiveClo.textContent),
+                individual_garment_clo_sum: parseFloat(dom.totalClo.textContent),
+                iso_9920_ensemble_clo: parseFloat(dom.effectiveClo.textContent),
                 final_core_temp_c: parseFloat(dom.simSummary.querySelector('span').textContent),
                 final_skin_temp_c: parseFloat(dom.simSummary.querySelector('.text-orange-200').textContent.split(': ')[1]),
                 physiological_response: getPhysiologyResponseEn(),
