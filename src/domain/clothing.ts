@@ -7,7 +7,7 @@ import {
 } from "./types";
 import scenarioContract from "../../scenario-contract.json";
 
-const insulationContract = scenarioContract.clothingInsulation;
+const insulationContract = scenarioContract["x-htmc"].clothingInsulation;
 
 export const ISO_9920_INTERCEPT_CLO = insulationContract.iso9920InterceptClo;
 export const ISO_9920_GARMENT_SUM_FACTOR = insulationContract.iso9920GarmentSumFactor;

@@ -56,8 +56,9 @@ python -m pip install -r requirements.txt
 
 The version 1 scenario JSON exported by the workbench is the only public
 simulation input format. The browser worker and native Python code accept the
-same document. Shared limits, segment mappings, and clothing insulation
-constants are defined in `scenario-contract.json`.
+same document. `scenario-contract.json` is the shared JSON Schema and contains
+the scientific constants used by both runtimes. `clothing-catalog.json` is the
+shared garment preset catalog.
 
 Run an exported scenario with Python:
 

@@ -1,0 +1,796 @@
+[
+  {
+    "id": "base_underwear",
+    "nameZh": "普通内衣裤",
+    "nameEn": "Regular underwear",
+    "segmentClo": {
+      "Pelvis": 0.04,
+      "Thigh": 0.02
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_sports_bra",
+    "nameZh": "运动内衣",
+    "nameEn": "Sports bra",
+    "segmentClo": {
+      "Chest": 0.03,
+      "Back": 0.03
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_t_shirt",
+    "nameZh": "棉质 T 恤",
+    "nameEn": "Cotton T-shirt",
+    "segmentClo": {
+      "Chest": 0.1,
+      "Back": 0.1,
+      "Pelvis": 0.06,
+      "Shoulder": 0.03,
+      "Arm": 0.02
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_synthetic_tshirt",
+    "nameZh": "速干 T 恤",
+    "nameEn": "Synthetic T-shirt",
+    "segmentClo": {
+      "Chest": 0.12,
+      "Back": 0.12,
+      "Pelvis": 0.07,
+      "Shoulder": 0.04,
+      "Arm": 0.02
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_tank_top",
+    "nameZh": "背心",
+    "nameEn": "Tank top",
+    "segmentClo": {
+      "Chest": 0.06,
+      "Back": 0.06,
+      "Pelvis": 0.03
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_silk_long",
+    "nameZh": "真丝长内衣",
+    "nameEn": "Silk long underwear",
+    "segmentClo": {
+      "Chest": 0.1,
+      "Back": 0.1,
+      "Pelvis": 0.1,
+      "Shoulder": 0.03,
+      "Arm": 0.08,
+      "Thigh": 0.1,
+      "Leg": 0.1
+    },
+    "category": "base"
+  },
+  {
+    "id": "base_thermal_long",
+    "nameZh": "长袖保暖内衣",
+    "nameEn": "Thermal long underwear",
+    "segmentClo": {
+      "Chest": 0.25,
+      "Back": 0.25,
+      "Pelvis": 0.22,
+      "Shoulder": 0.06,
+      "Arm": 0.2,
+      "Thigh": 0.22,
+      "Leg": 0.22
+    },
+    "category": "base"
+  },
+  {
+    "id": "mid_long_sleeve_shirt",
+    "nameZh": "长袖衬衫",
+    "nameEn": "Long-sleeve shirt",
+    "segmentClo": {
+      "Chest": 0.22,
+      "Back": 0.22,
+      "Pelvis": 0.18,
+      "Shoulder": 0.05,
+      "Arm": 0.14
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_flannel_shirt",
+    "nameZh": "法兰绒衬衫",
+    "nameEn": "Flannel shirt",
+    "segmentClo": {
+      "Chest": 0.3,
+      "Back": 0.3,
+      "Pelvis": 0.25,
+      "Shoulder": 0.07,
+      "Arm": 0.2
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_turtleneck",
+    "nameZh": "高领衫",
+    "nameEn": "Turtleneck",
+    "segmentClo": {
+      "Neck": 0.18,
+      "Chest": 0.32,
+      "Back": 0.32,
+      "Pelvis": 0.28,
+      "Shoulder": 0.06,
+      "Arm": 0.18
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_sweater",
+    "nameZh": "毛衣",
+    "nameEn": "Sweater",
+    "segmentClo": {
+      "Neck": 0.08,
+      "Chest": 0.37,
+      "Back": 0.37,
+      "Pelvis": 0.33,
+      "Shoulder": 0.08,
+      "Arm": 0.24
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_cashmere_sweater",
+    "nameZh": "羊绒衫",
+    "nameEn": "Cashmere sweater",
+    "segmentClo": {
+      "Neck": 0.1,
+      "Chest": 0.4,
+      "Back": 0.4,
+      "Pelvis": 0.36,
+      "Shoulder": 0.1,
+      "Arm": 0.28
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_hoodie",
+    "nameZh": "连帽卫衣",
+    "nameEn": "Hoodie",
+    "segmentClo": {
+      "Head": 0.1,
+      "Neck": 0.06,
+      "Chest": 0.35,
+      "Back": 0.35,
+      "Pelvis": 0.3,
+      "Shoulder": 0.1,
+      "Arm": 0.25
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_fleece_vest",
+    "nameZh": "抓绒背心",
+    "nameEn": "Fleece vest",
+    "segmentClo": {
+      "Chest": 0.3,
+      "Back": 0.3,
+      "Pelvis": 0.25,
+      "Neck": 0.04
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_fleece_zipup",
+    "nameZh": "抓绒拉链衫",
+    "nameEn": "Fleece zip-up",
+    "segmentClo": {
+      "Neck": 0.06,
+      "Chest": 0.4,
+      "Back": 0.4,
+      "Pelvis": 0.35,
+      "Shoulder": 0.12,
+      "Arm": 0.28
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_softshell_jacket",
+    "nameZh": "软壳夹克",
+    "nameEn": "Softshell jacket",
+    "segmentClo": {
+      "Neck": 0.05,
+      "Chest": 0.38,
+      "Back": 0.38,
+      "Pelvis": 0.33,
+      "Shoulder": 0.12,
+      "Arm": 0.26
+    },
+    "category": "mid"
+  },
+  {
+    "id": "mid_down_sweater",
+    "nameZh": "轻薄羽绒衫",
+    "nameEn": "Light down sweater",
+    "segmentClo": {
+      "Neck": 0.06,
+      "Chest": 0.5,
+      "Back": 0.5,
+      "Pelvis": 0.45,
+      "Shoulder": 0.18,
+      "Arm": 0.35
+    },
+    "category": "mid"
+  },
+  {
+    "id": "outer_skin_jacket",
+    "nameZh": "皮肤衣",
+    "nameEn": "Sun protection hoodie",
+    "segmentClo": {
+      "Head": 0.05,
+      "Neck": 0.03,
+      "Chest": 0.15,
+      "Back": 0.15,
+      "Pelvis": 0.12,
+      "Shoulder": 0.05,
+      "Arm": 0.1
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_cardigan",
+    "nameZh": "开衫",
+    "nameEn": "Cardigan",
+    "segmentClo": {
+      "Neck": 0.04,
+      "Chest": 0.25,
+      "Back": 0.25,
+      "Pelvis": 0.22,
+      "Shoulder": 0.06,
+      "Arm": 0.16
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_blazer",
+    "nameZh": "西装外套",
+    "nameEn": "Blazer",
+    "segmentClo": {
+      "Neck": 0.05,
+      "Chest": 0.35,
+      "Back": 0.35,
+      "Pelvis": 0.3,
+      "Shoulder": 0.08,
+      "Arm": 0.22
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_denim_jacket",
+    "nameZh": "牛仔夹克",
+    "nameEn": "Denim jacket",
+    "segmentClo": {
+      "Neck": 0.04,
+      "Chest": 0.28,
+      "Back": 0.28,
+      "Pelvis": 0.25,
+      "Shoulder": 0.06,
+      "Arm": 0.18
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_leather_jacket",
+    "nameZh": "皮夹克",
+    "nameEn": "Leather jacket",
+    "segmentClo": {
+      "Neck": 0.05,
+      "Chest": 0.3,
+      "Back": 0.3,
+      "Pelvis": 0.27,
+      "Shoulder": 0.07,
+      "Arm": 0.2
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_windbreaker",
+    "nameZh": "风衣",
+    "nameEn": "Windbreaker",
+    "segmentClo": {
+      "Neck": 0.04,
+      "Chest": 0.25,
+      "Back": 0.25,
+      "Pelvis": 0.25,
+      "Shoulder": 0.05,
+      "Arm": 0.15,
+      "Thigh": 0.1
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_rain_jacket",
+    "nameZh": "雨衣",
+    "nameEn": "Rain jacket",
+    "segmentClo": {
+      "Head": 0.1,
+      "Neck": 0.06,
+      "Chest": 0.3,
+      "Back": 0.3,
+      "Pelvis": 0.28,
+      "Shoulder": 0.08,
+      "Arm": 0.2
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_down_vest",
+    "nameZh": "羽绒背心",
+    "nameEn": "Down vest",
+    "segmentClo": {
+      "Neck": 0.08,
+      "Chest": 0.55,
+      "Back": 0.55,
+      "Pelvis": 0.5
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_wool_coat",
+    "nameZh": "羊毛大衣",
+    "nameEn": "Wool coat",
+    "segmentClo": {
+      "Neck": 0.1,
+      "Chest": 0.8,
+      "Back": 0.8,
+      "Pelvis": 0.8,
+      "Shoulder": 0.2,
+      "Arm": 0.5,
+      "Thigh": 0.15
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_duffle_coat",
+    "nameZh": "牛角扣大衣",
+    "nameEn": "Duffle coat",
+    "segmentClo": {
+      "Head": 0.15,
+      "Neck": 0.08,
+      "Chest": 0.7,
+      "Back": 0.7,
+      "Pelvis": 0.7,
+      "Shoulder": 0.18,
+      "Arm": 0.45,
+      "Thigh": 0.1
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_down_jacket",
+    "nameZh": "羽绒服",
+    "nameEn": "Down jacket",
+    "segmentClo": {
+      "Head": 0.15,
+      "Neck": 0.08,
+      "Chest": 1.2,
+      "Back": 1.2,
+      "Pelvis": 1.1,
+      "Shoulder": 0.3,
+      "Arm": 0.8
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_hardshell_jacket",
+    "nameZh": "硬壳冲锋衣",
+    "nameEn": "Hardshell jacket",
+    "segmentClo": {
+      "Head": 0.2,
+      "Neck": 0.1,
+      "Chest": 0.6,
+      "Back": 0.6,
+      "Pelvis": 0.55,
+      "Shoulder": 0.15,
+      "Arm": 0.45
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_expedition_parka",
+    "nameZh": "极地派克大衣",
+    "nameEn": "Expedition parka",
+    "segmentClo": {
+      "Head": 0.3,
+      "Neck": 0.15,
+      "Chest": 2,
+      "Back": 2,
+      "Pelvis": 1.9,
+      "Shoulder": 0.45,
+      "Arm": 1.2,
+      "Thigh": 0.2
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_cloak",
+    "nameZh": "斗篷／披风",
+    "nameEn": "Cloak or cape",
+    "segmentClo": {
+      "Head": 0.05,
+      "Neck": 0.03,
+      "Chest": 0.45,
+      "Back": 0.45,
+      "Pelvis": 0.4,
+      "Shoulder": 0.1,
+      "Arm": 0.05
+    },
+    "category": "outer"
+  },
+  {
+    "id": "outer_poncho",
+    "nameZh": "雨披",
+    "nameEn": "Poncho",
+    "segmentClo": {
+      "Head": 0.08,
+      "Neck": 0.04,
+      "Chest": 0.35,
+      "Back": 0.35,
+      "Pelvis": 0.3,
+      "Shoulder": 0.06,
+      "Arm": 0.03
+    },
+    "category": "outer"
+  },
+  {
+    "id": "pants_shorts",
+    "nameZh": "短裤",
+    "nameEn": "Shorts",
+    "segmentClo": {
+      "Thigh": 0.08
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_mini_skirt",
+    "nameZh": "迷你裙",
+    "nameEn": "Mini skirt",
+    "segmentClo": {
+      "Thigh": 0.05
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_pleated_skirt",
+    "nameZh": "百褶裙",
+    "nameEn": "Pleated skirt",
+    "segmentClo": {
+      "Thigh": 0.15,
+      "Leg": 0.05
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_knee_length_skirt",
+    "nameZh": "及膝裙",
+    "nameEn": "Knee-length skirt",
+    "segmentClo": {
+      "Thigh": 0.2,
+      "Leg": 0.1
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_long_skirt",
+    "nameZh": "长裙",
+    "nameEn": "Long skirt",
+    "segmentClo": {
+      "Thigh": 0.28,
+      "Leg": 0.22
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_leggings",
+    "nameZh": "打底裤／紧身裤",
+    "nameEn": "Leggings or tights",
+    "segmentClo": {
+      "Thigh": 0.25,
+      "Leg": 0.25
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_trousers",
+    "nameZh": "西裤／休闲裤",
+    "nameEn": "Trousers",
+    "segmentClo": {
+      "Thigh": 0.28,
+      "Leg": 0.28
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_jeans",
+    "nameZh": "牛仔裤",
+    "nameEn": "Jeans",
+    "segmentClo": {
+      "Thigh": 0.32,
+      "Leg": 0.32
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_cargo_pants",
+    "nameZh": "工装裤",
+    "nameEn": "Cargo pants",
+    "segmentClo": {
+      "Thigh": 0.3,
+      "Leg": 0.3
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_sweatpants",
+    "nameZh": "运动裤",
+    "nameEn": "Sweatpants",
+    "segmentClo": {
+      "Thigh": 0.3,
+      "Leg": 0.3
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_softshell_trousers",
+    "nameZh": "软壳裤",
+    "nameEn": "Softshell trousers",
+    "segmentClo": {
+      "Thigh": 0.5,
+      "Leg": 0.5
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_insulated",
+    "nameZh": "保暖裤",
+    "nameEn": "Insulated pants",
+    "segmentClo": {
+      "Thigh": 0.6,
+      "Leg": 0.6
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "pants_ski",
+    "nameZh": "滑雪裤",
+    "nameEn": "Ski pants",
+    "segmentClo": {
+      "Thigh": 1,
+      "Leg": 1
+    },
+    "category": "bottoms"
+  },
+  {
+    "id": "full_dress",
+    "nameZh": "连衣裙",
+    "nameEn": "Dress",
+    "segmentClo": {
+      "Chest": 0.28,
+      "Back": 0.28,
+      "Pelvis": 0.25,
+      "Shoulder": 0.06,
+      "Arm": 0.18,
+      "Thigh": 0.2,
+      "Leg": 0.08
+    },
+    "category": "full"
+  },
+  {
+    "id": "full_suit",
+    "nameZh": "西装套装",
+    "nameEn": "Full suit",
+    "segmentClo": {
+      "Chest": 0.35,
+      "Back": 0.35,
+      "Pelvis": 0.32,
+      "Shoulder": 0.08,
+      "Arm": 0.22,
+      "Thigh": 0.28,
+      "Leg": 0.28
+    },
+    "category": "full"
+  },
+  {
+    "id": "acc_fishnets",
+    "nameZh": "渔网袜",
+    "nameEn": "Fishnet stockings",
+    "segmentClo": {
+      "Thigh": 0.01,
+      "Leg": 0.01
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_tights",
+    "nameZh": "连裤袜",
+    "nameEn": "Tights",
+    "segmentClo": {
+      "Pelvis": 0.02,
+      "Thigh": 0.08,
+      "Leg": 0.08,
+      "Foot": 0.01
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_ankle_socks",
+    "nameZh": "船袜",
+    "nameEn": "Ankle socks",
+    "segmentClo": {
+      "Foot": 0.03
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_crew_socks",
+    "nameZh": "中筒袜",
+    "nameEn": "Crew socks",
+    "segmentClo": {
+      "Foot": 0.04,
+      "Leg": 0.03
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_knee_high_socks",
+    "nameZh": "及膝袜",
+    "nameEn": "Knee-high socks",
+    "segmentClo": {
+      "Foot": 0.05,
+      "Leg": 0.1
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_over_the_knee_socks",
+    "nameZh": "过膝袜",
+    "nameEn": "Over-the-knee socks",
+    "segmentClo": {
+      "Foot": 0.05,
+      "Leg": 0.12,
+      "Thigh": 0.08
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_wool_socks",
+    "nameZh": "羊毛袜",
+    "nameEn": "Wool socks",
+    "segmentClo": {
+      "Foot": 0.1,
+      "Leg": 0.04
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_sandals",
+    "nameZh": "凉鞋",
+    "nameEn": "Sandals",
+    "segmentClo": {
+      "Foot": 0.01
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_shoes",
+    "nameZh": "普通鞋",
+    "nameEn": "Regular shoes",
+    "segmentClo": {
+      "Foot": 0.05
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_boots",
+    "nameZh": "靴子",
+    "nameEn": "Boots",
+    "segmentClo": {
+      "Foot": 0.12,
+      "Leg": 0.06
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_winter_boots",
+    "nameZh": "雪地靴",
+    "nameEn": "Winter boots",
+    "segmentClo": {
+      "Foot": 0.25,
+      "Leg": 0.1
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_leather_gloves",
+    "nameZh": "皮手套",
+    "nameEn": "Leather gloves",
+    "segmentClo": {
+      "Hand": 0.15
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_gloves",
+    "nameZh": "手套",
+    "nameEn": "Gloves",
+    "segmentClo": {
+      "Hand": 0.25
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_mittens",
+    "nameZh": "连指厚手套",
+    "nameEn": "Mittens",
+    "segmentClo": {
+      "Hand": 0.4
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_scarf",
+    "nameZh": "围巾",
+    "nameEn": "Scarf",
+    "segmentClo": {
+      "Neck": 0.2
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_neck_gaiter",
+    "nameZh": "护颈／魔术头巾",
+    "nameEn": "Neck gaiter",
+    "segmentClo": {
+      "Neck": 0.18
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_beanie",
+    "nameZh": "毛线帽",
+    "nameEn": "Beanie",
+    "segmentClo": {
+      "Head": 0.25
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_earmuffs",
+    "nameZh": "耳罩",
+    "nameEn": "Earmuffs",
+    "segmentClo": {
+      "Head": 0.1
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_balaclava",
+    "nameZh": "巴拉克拉法帽",
+    "nameEn": "Balaclava",
+    "segmentClo": {
+      "Head": 0.4,
+      "Neck": 0.25
+    },
+    "category": "accessories"
+  },
+  {
+    "id": "acc_face_mask",
+    "nameZh": "口罩",
+    "nameEn": "Face mask",
+    "segmentClo": {
+      "Head": 0.02
+    },
+    "category": "accessories"
+  }
+]

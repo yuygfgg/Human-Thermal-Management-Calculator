@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import simulation_core
+import scenario_contract
 from simulation_core import MAX_SCENARIO_DURATION_MIN, simulate_scenario
 
 
@@ -33,8 +34,7 @@ def make_uniform_outfit(clo):
     return [
         make_garment(
             segment_clo={
-                segment: clo
-                for segment in simulation_core.SCENARIO_CONTRACT["clothingSegments"]
+                segment: clo for segment in scenario_contract.CLOTHING_SEGMENTS
             }
         )
     ]
@@ -258,8 +258,12 @@ class ScenarioSimulationTests(unittest.TestCase):
 
 
 class ScenarioValidationTests(unittest.TestCase):
-    def assert_invalid(self, scenario, message):
-        with self.assertRaisesRegex(ValueError, message):
+    def assert_invalid(self, scenario, path, message):
+        self.assertIn(
+            {"path": path, "message": message},
+            scenario_contract.validate_scenario(scenario),
+        )
+        with self.assertRaises(scenario_contract.ScenarioValidationError):
             simulate_scenario(scenario)
 
     def test_total_duration_must_not_exceed_24_hours(self):
@@ -270,7 +274,11 @@ class ScenarioValidationTests(unittest.TestCase):
             ]
         )
 
-        self.assert_invalid(scenario, "must not exceed 1440 minutes")
+        self.assert_invalid(
+            scenario,
+            "stages",
+            "Total duration must not exceed 1440 minutes.",
+        )
 
     def test_exact_duration_boundary_is_accepted(self):
         scenario = make_scenario([make_stage(duration_min=MAX_SCENARIO_DURATION_MIN)])
@@ -286,43 +294,85 @@ class ScenarioValidationTests(unittest.TestCase):
 
         missing_version = make_scenario()
         del missing_version["schemaVersion"]
-        cases.append((missing_version, "schemaVersion must be an integer"))
+        cases.append((missing_version, "schemaVersion", "Is required."))
 
         no_stages = make_scenario([])
-        cases.append((no_stages, "stages must contain at least one stage"))
+        cases.append((no_stages, "stages", "Must contain at least one stage."))
 
         duplicate_ids = make_scenario([make_stage("same"), make_stage("same")])
-        cases.append((duplicate_ids, "id must be unique"))
+        cases.append(
+            (
+                duplicate_ids,
+                "stages[1].id",
+                "Must be unique in the scenario.",
+            )
+        )
 
         incomplete_profile = make_scenario()
         incomplete_profile["stages"][0]["environment"]["airTempC"] = {"start": 5}
-        cases.append((incomplete_profile, "profile must contain start and end"))
+        cases.append(
+            (
+                incomplete_profile,
+                "stages[0].environment.airTempC.end",
+                "Is required.",
+            )
+        )
 
         invalid_outfit = make_scenario()
         invalid_outfit["stages"][0]["outfit"] = [
             make_garment(segment_clo={"Unknown": 0.5})
         ]
-        cases.append((invalid_outfit, "unknown clothing segment"))
+        cases.append(
+            (
+                invalid_outfit,
+                "stages[0].outfit[0].segmentClo.Unknown",
+                "Unknown clothing segment.",
+            )
+        )
 
         bad_posture = make_scenario()
         bad_posture["stages"][0]["posture"] = "crouching"
-        cases.append((bad_posture, "posture must be"))
+        cases.append(
+            (
+                bad_posture,
+                "stages[0].posture",
+                "Must be 'standing', 'sitting', or 'lying'.",
+            )
+        )
 
         non_integer_duration = make_scenario()
         non_integer_duration["stages"][0]["durationMin"] = 3.5
-        cases.append((non_integer_duration, "durationMin must be an integer"))
+        cases.append(
+            (
+                non_integer_duration,
+                "stages[0].durationMin",
+                "Must be an integer.",
+            )
+        )
 
         non_finite_number = make_scenario()
         non_finite_number["stages"][0]["activityMet"]["start"] = float("nan")
-        cases.append((non_finite_number, "activityMet.start must be a finite number"))
+        cases.append(
+            (
+                non_finite_number,
+                "stages[0].activityMet.start",
+                "Must be a finite number.",
+            )
+        )
 
         out_of_range_subject = make_scenario()
         out_of_range_subject["subject"]["heightCm"] = 99
-        cases.append((out_of_range_subject, "heightCm must be at least 100"))
+        cases.append(
+            (
+                out_of_range_subject,
+                "subject.heightCm",
+                "Must be at least 100.",
+            )
+        )
 
-        for scenario, message in cases:
-            with self.subTest(message=message):
-                self.assert_invalid(copy.deepcopy(scenario), message)
+        for scenario, path, message in cases:
+            with self.subTest(path=path):
+                self.assert_invalid(copy.deepcopy(scenario), path, message)
 
     def test_removed_snake_case_protocol_is_rejected(self):
         old_protocol = make_scenario()
@@ -334,7 +384,28 @@ class ScenarioValidationTests(unittest.TestCase):
             "base_core_temp_c": 36.6,
         }
 
-        self.assert_invalid(old_protocol, "subject.heightCm must be a finite number")
+        issues = scenario_contract.validate_scenario(old_protocol)
+
+        self.assertIn(
+            {"path": "subject.heightCm", "message": "Is required."},
+            issues,
+        )
+        self.assertIn(
+            {"path": "subject.height_cm", "message": "Unknown property."},
+            issues,
+        )
+
+
+class ClothingCatalogTests(unittest.TestCase):
+    def test_shared_catalog_is_valid_and_has_unique_ids(self):
+        self.assertEqual(
+            scenario_contract.validate_garment_catalog(
+                scenario_contract.CLOTHING_CATALOG
+            ),
+            [],
+        )
+        ids = [garment["id"] for garment in scenario_contract.CLOTHING_CATALOG]
+        self.assertEqual(len(ids), len(set(ids)))
 
 
 if __name__ == "__main__":

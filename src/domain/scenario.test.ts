@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import clothingCatalog from "../../clothing-catalog.json";
 import type { GarmentInstance, SimulationScenario } from "./types";
 import {
   ScenarioValidationError,
   assertValidScenario,
   validateScenario,
 } from "./scenario";
+import { validateGarmentCatalog } from "./scenarioContract";
 
 const shirt: GarmentInstance = {
   id: "shirt",
@@ -97,6 +99,23 @@ describe("validateScenario", () => {
     ]));
   });
 
+  it("rejects unknown object fields and clothing segments", () => {
+    const invalid = scenario() as unknown as Record<string, unknown>;
+    invalid.legacyField = true;
+    const stage = (invalid.stages as Array<Record<string, unknown>>)[0];
+    const outfit = stage.outfit as Array<Record<string, unknown>>;
+    const segmentClo = outfit[0].segmentClo as Record<string, unknown>;
+    segmentClo.Unknown = 0.5;
+
+    expect(validateScenario(invalid)).toEqual(expect.arrayContaining([
+      { path: "legacyField", message: "Unknown property." },
+      {
+        path: "stages[0].outfit[0].segmentClo.Unknown",
+        message: "Unknown clothing segment.",
+      },
+    ]));
+  });
+
   it("accepts the exact 24-hour duration boundary", () => {
     const boundary = scenario();
     boundary.stages[0].durationMin = 1440;
@@ -114,5 +133,22 @@ describe("validateScenario", () => {
     } catch (error) {
       expect((error as ScenarioValidationError).issues[0].path).toBe("stages[0].durationMin");
     }
+  });
+});
+
+describe("shared clothing catalog", () => {
+  it("conforms to the shared garment schema and has unique identifiers", () => {
+    expect(validateGarmentCatalog(clothingCatalog)).toEqual([]);
+    const ids = clothingCatalog.map((garment) => garment.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("reports duplicate preset identifiers", () => {
+    const duplicate = [clothingCatalog[0], clothingCatalog[0]];
+
+    expect(validateGarmentCatalog(duplicate)).toContainEqual({
+      path: "[1].id",
+      message: "Must be unique in the catalog.",
+    });
   });
 });

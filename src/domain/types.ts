@@ -33,11 +33,11 @@ export type ClothingSegment =
   | "Foot";
 
 export const BODY_SEGMENTS = Object.freeze(
-  scenarioContract.bodySegments,
+  scenarioContract.definitions.bodySegment.enum,
 ) as readonly BodySegment[];
 
 export const CLOTHING_SEGMENTS = Object.freeze(
-  scenarioContract.clothingSegments,
+  scenarioContract.definitions.clothingSegment.enum,
 ) as readonly ClothingSegment[];
 export type Language = "zh" | "en";
 export type Theme = "light" | "dark";

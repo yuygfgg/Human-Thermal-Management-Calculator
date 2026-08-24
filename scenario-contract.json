@@ -1,103 +1,343 @@
 {
-  "schemaVersion": 1,
-  "bodySegments": [
-    "Head",
-    "Neck",
-    "Chest",
-    "Back",
-    "Pelvis",
-    "LShoulder",
-    "LArm",
-    "LHand",
-    "RShoulder",
-    "RArm",
-    "RHand",
-    "LThigh",
-    "LLeg",
-    "LFoot",
-    "RThigh",
-    "RLeg",
-    "RFoot"
-  ],
-  "clothingSegments": [
-    "Head",
-    "Neck",
-    "Chest",
-    "Back",
-    "Pelvis",
-    "Shoulder",
-    "Arm",
-    "Hand",
-    "Thigh",
-    "Leg",
-    "Foot"
-  ],
-  "clothingCategories": [
-    "base",
-    "mid",
-    "outer",
-    "bottoms",
-    "full",
-    "accessories"
-  ],
-  "postures": ["standing", "sitting", "lying"],
-  "limits": {
-    "heightCm": { "minimum": 100, "maximum": 250 },
-    "weightKg": { "minimum": 20, "maximum": 350 },
-    "ageYears": { "minimum": 1, "maximum": 120, "integer": true },
-    "referenceCoreTempC": { "minimum": 30, "maximum": 42 },
-    "durationMin": { "minimum": 1, "maximum": 1440, "integer": true },
-    "airTempC": { "minimum": -60, "maximum": 80 },
-    "windSpeedMs": { "minimum": 0, "maximum": 60 },
-    "relativeHumidityPercent": { "minimum": 0, "maximum": 100 },
-    "solarRadiationWm2": { "minimum": 0, "maximum": 2000 },
-    "mediumThermalConductivityWmK": {
-      "minimum": 0,
-      "maximum": 500,
-      "exclusiveMinimum": true
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://calc.yuygfgg.xyz/contracts/scenario-v1.schema.json",
+  "title": "Human Thermal Management Scenario",
+  "description": "The public version 1 input contract for one continuous thermal simulation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "subject", "stages"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "The scenario protocol version."
     },
-    "activityMet": { "minimum": 0.8, "maximum": 12 },
-    "garmentModifier": {
-      "minimum": 0,
-      "maximum": 3,
-      "exclusiveMinimum": true
-    },
-    "clothingClo": { "minimum": 0, "maximum": 10 }
+    "name": { "$ref": "#/definitions/nonEmptyString" },
+    "subject": { "$ref": "#/definitions/subject" },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/stage" }
+    }
   },
-  "clothingInsulation": {
-    "iso9920InterceptClo": 0.161,
-    "iso9920GarmentSumFactor": 0.835,
-    "segmentAreaFractions": {
-      "Head": 0.055,
-      "Neck": 0.015,
-      "Chest": 0.12,
-      "Back": 0.12,
-      "Pelvis": 0.11,
-      "Shoulder": 0.04,
-      "Arm": 0.1,
-      "Hand": 0.05,
-      "Thigh": 0.18,
-      "Leg": 0.14,
-      "Foot": 0.07
+  "definitions": {
+    "nonEmptyString": {
+      "type": "string",
+      "pattern": "\\S"
     },
-    "bodyToClothingSegment": {
-      "Head": "Head",
-      "Neck": "Neck",
-      "Chest": "Chest",
-      "Back": "Back",
-      "Pelvis": "Pelvis",
-      "LShoulder": "Shoulder",
-      "LArm": "Arm",
-      "LHand": "Hand",
-      "RShoulder": "Shoulder",
-      "RArm": "Arm",
-      "RHand": "Hand",
-      "LThigh": "Thigh",
-      "LLeg": "Leg",
-      "LFoot": "Foot",
-      "RThigh": "Thigh",
-      "RLeg": "Leg",
-      "RFoot": "Foot"
+    "bodySegment": {
+      "type": "string",
+      "enum": [
+        "Head",
+        "Neck",
+        "Chest",
+        "Back",
+        "Pelvis",
+        "LShoulder",
+        "LArm",
+        "LHand",
+        "RShoulder",
+        "RArm",
+        "RHand",
+        "LThigh",
+        "LLeg",
+        "LFoot",
+        "RThigh",
+        "RLeg",
+        "RFoot"
+      ]
+    },
+    "clothingSegment": {
+      "type": "string",
+      "enum": [
+        "Head",
+        "Neck",
+        "Chest",
+        "Back",
+        "Pelvis",
+        "Shoulder",
+        "Arm",
+        "Hand",
+        "Thigh",
+        "Leg",
+        "Foot"
+      ]
+    },
+    "clothingCategory": {
+      "type": "string",
+      "enum": ["base", "mid", "outer", "bottoms", "full", "accessories"]
+    },
+    "posture": {
+      "type": "string",
+      "enum": ["standing", "sitting", "lying"]
+    },
+    "heightCm": {
+      "type": "number",
+      "minimum": 100,
+      "maximum": 250,
+      "description": "Body height in centimetres."
+    },
+    "weightKg": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 350,
+      "description": "Body weight in kilograms."
+    },
+    "ageYears": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 120,
+      "description": "Age in completed years."
+    },
+    "referenceCoreTempC": {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 42,
+      "description": "Reference core temperature in degrees Celsius."
+    },
+    "durationMin": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1440,
+      "description": "Stage duration in minutes."
+    },
+    "airTempC": {
+      "type": "number",
+      "minimum": -60,
+      "maximum": 80,
+      "description": "Air temperature in degrees Celsius."
+    },
+    "windSpeedMs": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60,
+      "description": "Air speed in metres per second."
+    },
+    "relativeHumidityPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Relative humidity as a percentage."
+    },
+    "solarRadiationWm2": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2000,
+      "description": "Solar radiation in watts per square metre."
+    },
+    "mediumThermalConductivityWmK": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 500,
+      "description": "Surrounding-medium thermal conductivity in watts per metre-kelvin."
+    },
+    "activityMet": {
+      "type": "number",
+      "minimum": 0.8,
+      "maximum": 12,
+      "description": "Metabolic activity in met."
+    },
+    "garmentModifier": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 3,
+      "description": "A multiplier applied to one garment."
+    },
+    "clothingClo": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Regional clothing insulation in clo."
+    },
+    "airTempProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/airTempC" },
+        "end": { "$ref": "#/definitions/airTempC" }
+      }
+    },
+    "windSpeedProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/windSpeedMs" },
+        "end": { "$ref": "#/definitions/windSpeedMs" }
+      }
+    },
+    "relativeHumidityProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/relativeHumidityPercent" },
+        "end": { "$ref": "#/definitions/relativeHumidityPercent" }
+      }
+    },
+    "solarRadiationProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/solarRadiationWm2" },
+        "end": { "$ref": "#/definitions/solarRadiationWm2" }
+      }
+    },
+    "mediumThermalConductivityProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/mediumThermalConductivityWmK" },
+        "end": { "$ref": "#/definitions/mediumThermalConductivityWmK" }
+      }
+    },
+    "activityProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "$ref": "#/definitions/activityMet" },
+        "end": { "$ref": "#/definitions/activityMet" }
+      }
+    },
+    "segmentClo": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/definitions/clothingSegment" },
+      "additionalProperties": { "$ref": "#/definitions/clothingClo" }
+    },
+    "garmentPreset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nameZh", "nameEn", "category", "segmentClo"],
+      "properties": {
+        "id": { "$ref": "#/definitions/nonEmptyString" },
+        "nameZh": { "$ref": "#/definitions/nonEmptyString" },
+        "nameEn": { "$ref": "#/definitions/nonEmptyString" },
+        "category": { "$ref": "#/definitions/clothingCategory" },
+        "segmentClo": { "$ref": "#/definitions/segmentClo" }
+      }
+    },
+    "garment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "instanceId",
+        "nameZh",
+        "nameEn",
+        "category",
+        "modifier",
+        "segmentClo"
+      ],
+      "properties": {
+        "id": { "$ref": "#/definitions/nonEmptyString" },
+        "instanceId": { "$ref": "#/definitions/nonEmptyString" },
+        "nameZh": { "$ref": "#/definitions/nonEmptyString" },
+        "nameEn": { "$ref": "#/definitions/nonEmptyString" },
+        "category": { "$ref": "#/definitions/clothingCategory" },
+        "modifier": { "$ref": "#/definitions/garmentModifier" },
+        "segmentClo": { "$ref": "#/definitions/segmentClo" }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sex", "heightCm", "weightKg", "ageYears", "referenceCoreTempC"],
+      "properties": {
+        "sex": {
+          "type": "string",
+          "enum": ["female", "male"]
+        },
+        "heightCm": { "$ref": "#/definitions/heightCm" },
+        "weightKg": { "$ref": "#/definitions/weightKg" },
+        "ageYears": { "$ref": "#/definitions/ageYears" },
+        "referenceCoreTempC": { "$ref": "#/definitions/referenceCoreTempC" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "airTempC",
+        "windSpeedMs",
+        "relativeHumidityPercent",
+        "solarRadiationWm2",
+        "mediumThermalConductivityWmK"
+      ],
+      "properties": {
+        "airTempC": { "$ref": "#/definitions/airTempProfile" },
+        "windSpeedMs": { "$ref": "#/definitions/windSpeedProfile" },
+        "relativeHumidityPercent": { "$ref": "#/definitions/relativeHumidityProfile" },
+        "solarRadiationWm2": { "$ref": "#/definitions/solarRadiationProfile" },
+        "mediumThermalConductivityWmK": {
+          "$ref": "#/definitions/mediumThermalConductivityProfile"
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "durationMin",
+        "environment",
+        "activityMet",
+        "posture",
+        "outfit"
+      ],
+      "properties": {
+        "id": { "$ref": "#/definitions/nonEmptyString" },
+        "name": { "$ref": "#/definitions/nonEmptyString" },
+        "durationMin": { "$ref": "#/definitions/durationMin" },
+        "environment": { "$ref": "#/definitions/environment" },
+        "activityMet": { "$ref": "#/definitions/activityProfile" },
+        "posture": { "$ref": "#/definitions/posture" },
+        "outfit": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/garment" }
+        }
+      }
+    }
+  },
+  "x-htmc": {
+    "clothingInsulation": {
+      "iso9920InterceptClo": 0.161,
+      "iso9920GarmentSumFactor": 0.835,
+      "segmentAreaFractions": {
+        "Head": 0.055,
+        "Neck": 0.015,
+        "Chest": 0.12,
+        "Back": 0.12,
+        "Pelvis": 0.11,
+        "Shoulder": 0.04,
+        "Arm": 0.1,
+        "Hand": 0.05,
+        "Thigh": 0.18,
+        "Leg": 0.14,
+        "Foot": 0.07
+      },
+      "bodyToClothingSegment": {
+        "Head": "Head",
+        "Neck": "Neck",
+        "Chest": "Chest",
+        "Back": "Back",
+        "Pelvis": "Pelvis",
+        "LShoulder": "Shoulder",
+        "LArm": "Arm",
+        "LHand": "Hand",
+        "RShoulder": "Shoulder",
+        "RArm": "Arm",
+        "RHand": "Hand",
+        "LThigh": "Thigh",
+        "LLeg": "Leg",
+        "LFoot": "Foot",
+        "RThigh": "Thigh",
+        "RLeg": "Leg",
+        "RFoot": "Foot"
+      }
     }
   }
 }

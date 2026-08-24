@@ -13,7 +13,9 @@ function simulationAssetUrl(path) {
 }
 
 const CORE_URL = simulationAssetUrl("simulation_core.py");
+const CONTRACT_MODULE_URL = simulationAssetUrl("scenario_contract.py");
 const CONTRACT_URL = simulationAssetUrl("scenario-contract.json");
+const CLOTHING_CATALOG_URL = simulationAssetUrl("clothing-catalog.json");
 const JOS3_WHEEL_URL = simulationAssetUrl("vendor/jos3-0.5.0-py3-none-any.whl");
 
 let pyodidePromise;
@@ -34,7 +36,7 @@ async function getPyodide() {
             postEngineStatus("loading");
             importScripts(`${PYODIDE_BASE_URL}pyodide.js`);
             const runtime = await loadPyodide({ indexURL: PYODIDE_BASE_URL });
-            await runtime.loadPackage(["numpy", "micropip"]);
+            await runtime.loadPackage(["numpy", "micropip", "jsonschema"]);
 
             const fetchAsset = async (url, name) => {
                 const response = await fetch(url);
@@ -43,12 +45,16 @@ async function getPyodide() {
                 }
                 return response.text();
             };
-            const [coreSource, contractSource] = await Promise.all([
+            const [coreSource, contractModuleSource, contractSource, clothingCatalogSource] = await Promise.all([
                 fetchAsset(CORE_URL, "simulation core"),
+                fetchAsset(CONTRACT_MODULE_URL, "scenario contract module"),
                 fetchAsset(CONTRACT_URL, "scenario contract"),
+                fetchAsset(CLOTHING_CATALOG_URL, "clothing catalog"),
             ]);
             runtime.FS.writeFile("/home/pyodide/simulation_core.py", coreSource);
+            runtime.FS.writeFile("/home/pyodide/scenario_contract.py", contractModuleSource);
             runtime.FS.writeFile("/home/pyodide/scenario-contract.json", contractSource);
+            runtime.FS.writeFile("/home/pyodide/clothing-catalog.json", clothingCatalogSource);
             runtime.globals.set("htm_jos3_wheel_url", JOS3_WHEEL_URL);
             await runtime.runPythonAsync(`
 import micropip
