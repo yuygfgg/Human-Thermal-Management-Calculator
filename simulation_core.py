@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import contextvars
 import math
-from typing import Any, Dict, List
+from dataclasses import dataclass
+from typing import Any, Dict, List, Mapping, Sequence
 
 import numpy as np
 
@@ -35,6 +36,107 @@ HR_W_M2K = 4.7
 SOLAR_EFFECTIVE_FACTOR = 0.12
 AIR_THERMAL_CONDUCTIVITY_W_MK = 0.026
 DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W = 270.0
+SCENARIO_SCHEMA_VERSION = 1
+MAX_SCENARIO_DURATION_MIN = 24 * 60
+
+JOS3_REGION_SUFFIXES = (
+    "Head",
+    "Neck",
+    "Chest",
+    "Back",
+    "Pelvis",
+    "LShoulder",
+    "LArm",
+    "LHand",
+    "RShoulder",
+    "RArm",
+    "RHand",
+    "LThigh",
+    "LLeg",
+    "LFoot",
+    "RThigh",
+    "RLeg",
+    "RFoot",
+)
+
+
+@dataclass(frozen=True)
+class NumericProfile:
+    start: float
+    end: float
+
+    def sample(self, step: int, duration_min: int) -> float:
+        if duration_min <= 1:
+            return self.start if duration_min == 0 else self.end
+        fraction = step / (duration_min - 1)
+        return self.start + ((self.end - self.start) * fraction)
+
+    def to_json(self) -> float | Dict[str, float]:
+        if self.start == self.end:
+            return self.start
+        return {"start": self.start, "end": self.end}
+
+
+@dataclass(frozen=True)
+class SubjectConfig:
+    sex: str
+    height_cm: float
+    weight_kg: float
+    age_years: int
+    base_core_temp_c: float
+
+
+@dataclass(frozen=True)
+class StageConfig:
+    id: str
+    name: str
+    duration_min: int
+    air_temp_c: NumericProfile
+    wind_speed_ms: NumericProfile
+    rh_percent: NumericProfile
+    solar_radiation_wm2: NumericProfile
+    medium_thermal_conductivity_w_mk: NumericProfile
+    activity_met: NumericProfile
+    posture: str
+    icl17: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class ScenarioConfig:
+    subject: SubjectConfig
+    stages: tuple[StageConfig, ...]
+    shivering_suppression_threshold_w: float
+
+
+@dataclass(frozen=True)
+class StageSample:
+    air_temp_c: float
+    wind_speed_ms: float
+    rh_percent: float
+    solar_radiation_wm2: float
+    medium_thermal_conductivity_w_mk: float
+    activity_met: float
+    posture: str
+    icl17: tuple[float, ...]
+
+    @property
+    def delta_tr_c(self) -> float:
+        return (self.solar_radiation_wm2 * SOLAR_EFFECTIVE_FACTOR) / HR_W_M2K
+
+    @property
+    def radiant_temp_c(self) -> float:
+        return self.air_temp_c + self.delta_tr_c
+
+    @property
+    def medium_hc_scale(self) -> float:
+        return self.medium_thermal_conductivity_w_mk / AIR_THERMAL_CONDUCTIVITY_W_MK
+
+
+@dataclass(frozen=True)
+class ActivityState:
+    work_w: float
+    suppression: float
+    scale: float
 
 
 def _patch_jos3_shivering() -> None:
@@ -153,21 +255,254 @@ def _body_fat_percent(
     return _clamp(float(fat), 3.0, 60.0)
 
 
-def _parse_icl17(payload: Dict[str, Any]) -> np.ndarray:
+def _parse_icl17(payload: Mapping[str, Any], *, strict: bool = False) -> np.ndarray:
     icl17 = payload.get("icl17")
     if not isinstance(icl17, (list, tuple, np.ndarray)) or len(icl17) != 17:
         raise ValueError("icl17 must be a 17-length array in JOS-3 segment order")
 
     values = []
-    for value in icl17:
+    for index, value in enumerate(icl17):
         try:
-            number = float(0.0 if value is None else value)
+            if isinstance(value, bool):
+                raise TypeError
+            number = float(value)
         except (TypeError, ValueError):
+            if strict:
+                raise ValueError(
+                    f"icl17[{index}] must be a finite non-negative number"
+                ) from None
             number = 0.0
         if not math.isfinite(number) or number < 0.0:
+            if strict:
+                raise ValueError(f"icl17[{index}] must be a finite non-negative number")
             number = 0.0
         values.append(number)
     return np.asarray(values, dtype=float)
+
+
+def _require_mapping(value: Any, path: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{path} must be an object")
+    return value
+
+
+def _number(
+    value: Any,
+    path: str,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+    exclusive_minimum: bool = False,
+) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"{path} must be a finite number")
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{path} must be a finite number") from None
+    if not math.isfinite(number):
+        raise ValueError(f"{path} must be a finite number")
+    if minimum is not None:
+        invalid = number <= minimum if exclusive_minimum else number < minimum
+        if invalid:
+            operator = "greater than" if exclusive_minimum else "at least"
+            raise ValueError(f"{path} must be {operator} {minimum:g}")
+    if maximum is not None and number > maximum:
+        raise ValueError(f"{path} must be at most {maximum:g}")
+    return number
+
+
+def _integer(
+    value: Any,
+    path: str,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, np.integer)):
+        raise ValueError(f"{path} must be an integer")
+    number = int(value)
+    if minimum is not None and number < minimum:
+        raise ValueError(f"{path} must be at least {minimum}")
+    if maximum is not None and number > maximum:
+        raise ValueError(f"{path} must be at most {maximum}")
+    return number
+
+
+def _profile(
+    value: Any,
+    path: str,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+    exclusive_minimum: bool = False,
+) -> NumericProfile:
+    if isinstance(value, Mapping):
+        if "start" not in value or "end" not in value:
+            raise ValueError(f"{path} profile must contain start and end")
+        start_value = value["start"]
+        end_value = value["end"]
+    else:
+        start_value = value
+        end_value = value
+    start = _number(
+        start_value,
+        f"{path}.start",
+        minimum=minimum,
+        maximum=maximum,
+        exclusive_minimum=exclusive_minimum,
+    )
+    end = _number(
+        end_value,
+        f"{path}.end",
+        minimum=minimum,
+        maximum=maximum,
+        exclusive_minimum=exclusive_minimum,
+    )
+    return NumericProfile(start=start, end=end)
+
+
+def _normalize_scenario(payload: Mapping[str, Any]) -> ScenarioConfig:
+    scenario = _require_mapping(payload, "scenario")
+    schema_version = _integer(scenario.get("schemaVersion"), "schemaVersion")
+    if schema_version != SCENARIO_SCHEMA_VERSION:
+        raise ValueError(
+            f"schemaVersion must be {SCENARIO_SCHEMA_VERSION}; received {schema_version}"
+        )
+
+    subject_value = _require_mapping(scenario.get("subject"), "subject")
+    sex_value = subject_value.get("sex", subject_value.get("gender"))
+    if not isinstance(sex_value, str) or sex_value.lower() not in {"female", "male"}:
+        raise ValueError("subject.sex must be 'female' or 'male'")
+    subject = SubjectConfig(
+        sex=sex_value.lower(),
+        height_cm=_number(
+            subject_value.get("height_cm"),
+            "subject.height_cm",
+            minimum=0.0,
+            exclusive_minimum=True,
+        ),
+        weight_kg=_number(
+            subject_value.get("weight_kg"),
+            "subject.weight_kg",
+            minimum=0.0,
+            exclusive_minimum=True,
+        ),
+        age_years=_integer(
+            subject_value.get("age_years"),
+            "subject.age_years",
+            minimum=1,
+        ),
+        base_core_temp_c=_number(
+            subject_value.get("base_core_temp_c", 36.6),
+            "subject.base_core_temp_c",
+        ),
+    )
+
+    stages_value = scenario.get("stages")
+    if not isinstance(stages_value, Sequence) or isinstance(stages_value, (str, bytes)):
+        raise ValueError("stages must be an array")
+    if not stages_value:
+        raise ValueError("stages must contain at least one stage")
+
+    stages: List[StageConfig] = []
+    seen_ids: set[str] = set()
+    total_duration = 0
+    for index, raw_stage in enumerate(stages_value):
+        path = f"stages[{index}]"
+        stage_value = _require_mapping(raw_stage, path)
+        stage_id = stage_value.get("id")
+        name = stage_value.get("name")
+        if not isinstance(stage_id, str) or not stage_id.strip():
+            raise ValueError(f"{path}.id must be a non-empty string")
+        if stage_id in seen_ids:
+            raise ValueError(f"{path}.id must be unique")
+        seen_ids.add(stage_id)
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"{path}.name must be a non-empty string")
+
+        duration_min = _integer(
+            stage_value.get("duration_min"),
+            f"{path}.duration_min",
+            minimum=0,
+            maximum=MAX_SCENARIO_DURATION_MIN,
+        )
+        total_duration += duration_min
+        if total_duration > MAX_SCENARIO_DURATION_MIN:
+            raise ValueError(
+                f"scenario duration must not exceed {MAX_SCENARIO_DURATION_MIN} minutes"
+            )
+
+        environment = _require_mapping(
+            stage_value.get("environment"), f"{path}.environment"
+        )
+        posture = stage_value.get("posture")
+        if posture not in {"standing", "sitting", "lying"}:
+            raise ValueError(
+                f"{path}.posture must be 'standing', 'sitting', or 'lying'"
+            )
+        icl17 = _parse_icl17(stage_value, strict=True)
+        stages.append(
+            StageConfig(
+                id=stage_id,
+                name=name,
+                duration_min=duration_min,
+                air_temp_c=_profile(
+                    environment.get("air_temp_c"),
+                    f"{path}.environment.air_temp_c",
+                ),
+                wind_speed_ms=_profile(
+                    environment.get("wind_speed_ms"),
+                    f"{path}.environment.wind_speed_ms",
+                    minimum=0.0,
+                ),
+                rh_percent=_profile(
+                    environment.get("rh_percent"),
+                    f"{path}.environment.rh_percent",
+                    minimum=0.0,
+                    maximum=100.0,
+                ),
+                solar_radiation_wm2=_profile(
+                    environment.get("solar_radiation_wm2", 0.0),
+                    f"{path}.environment.solar_radiation_wm2",
+                    minimum=0.0,
+                ),
+                medium_thermal_conductivity_w_mk=_profile(
+                    environment.get(
+                        "medium_thermal_conductivity_w_mk",
+                        AIR_THERMAL_CONDUCTIVITY_W_MK,
+                    ),
+                    f"{path}.environment.medium_thermal_conductivity_w_mk",
+                    minimum=0.0,
+                    exclusive_minimum=True,
+                ),
+                activity_met=_profile(
+                    stage_value.get("activity_met"),
+                    f"{path}.activity_met",
+                    minimum=0.0,
+                    exclusive_minimum=True,
+                ),
+                posture=posture,
+                icl17=tuple(float(value) for value in icl17),
+            )
+        )
+
+    options_value = scenario.get("options", {})
+    options = _require_mapping(options_value, "options")
+    threshold = _number(
+        options.get(
+            "shivering_suppression_threshold_w",
+            DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
+        ),
+        "options.shivering_suppression_threshold_w",
+        minimum=0.0,
+        exclusive_minimum=True,
+    )
+    return ScenarioConfig(
+        subject=subject,
+        stages=tuple(stages),
+        shivering_suppression_threshold_w=threshold,
+    )
 
 
 def _icl17_to_regional_clo(icl17: np.ndarray) -> Dict[str, float]:
@@ -187,7 +522,9 @@ def _icl17_to_regional_clo(icl17: np.ndarray) -> Dict[str, float]:
     foot = 0.5 * (float(icl17[13]) + float(icl17[16]))
 
     def weighted(values: tuple[float, ...], weights: tuple[float, ...]) -> float:
-        return float(sum(value * weight for value, weight in zip(values, weights)) / sum(weights))
+        return float(
+            sum(value * weight for value, weight in zip(values, weights)) / sum(weights)
+        )
 
     return {
         "head": weighted((head, neck), area["head"]),
@@ -238,96 +575,345 @@ def _latest_shivering_w(model: Any) -> float:
     return float(np.asarray(value, dtype=float).sum())
 
 
-def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
-    medium_k_raw = payload.get(
+def _temperature_shivering_scale(core_temp_c: float) -> float:
+    if 34.0 <= core_temp_c <= 37.2:
+        return 1.0
+    if core_temp_c < 34.0:
+        return max(0.0, (core_temp_c - 30.0) / 4.0)
+    return max(0.0, 1.0 - (core_temp_c - 37.2) / 0.8)
+
+
+def _activity_state(
+    activity_met: float,
+    bsa_m2: float,
+    suppression_threshold_w: float,
+) -> ActivityState:
+    work_w = max(0.0, (activity_met - 1.0) * 58.2 * bsa_m2)
+    suppression = min(1.0, work_w / suppression_threshold_w)
+    return ActivityState(
+        work_w=work_w,
+        suppression=suppression,
+        scale=_clamp(1.0 - suppression, 0.0, 1.0),
+    )
+
+
+def _sample_stage(stage: StageConfig, step: int | None = None) -> StageSample:
+    def sample(profile: NumericProfile) -> float:
+        if step is None:
+            return profile.start
+        return profile.sample(step, stage.duration_min)
+
+    return StageSample(
+        air_temp_c=sample(stage.air_temp_c),
+        wind_speed_ms=sample(stage.wind_speed_ms),
+        rh_percent=sample(stage.rh_percent),
+        solar_radiation_wm2=sample(stage.solar_radiation_wm2),
+        medium_thermal_conductivity_w_mk=sample(stage.medium_thermal_conductivity_w_mk),
+        activity_met=sample(stage.activity_met),
+        posture=stage.posture,
+        icl17=stage.icl17,
+    )
+
+
+def _apply_conditions(
+    model: Any,
+    conditions: StageSample,
+    *,
+    bsa_m2: float,
+    suppression_threshold_w: float,
+) -> ActivityState:
+    model.Ta = conditions.air_temp_c
+    model.Tr = conditions.radiant_temp_c
+    model.RH = conditions.rh_percent
+    model.Va = conditions.wind_speed_ms
+    model.posture = conditions.posture
+    model.Icl = np.asarray(conditions.icl17, dtype=float)
+
+    model.PAR = float(
+        _clamp((conditions.activity_met * 58.2) / float(model.BMR), 0.8, 12.0)
+    )
+    activity = _activity_state(
+        conditions.activity_met,
+        bsa_m2,
+        suppression_threshold_w,
+    )
+    model.options["shivering_activity_scale"] = activity.scale
+    model.options["shivering_activity_suppression_coeff"] = activity.suppression
+    model.options["shivering_activity_work_w"] = activity.work_w
+    model.options["shivering_activity_threshold_w"] = suppression_threshold_w
+    return activity
+
+
+def _append_condition_sample(
+    history: Dict[str, List[Any]],
+    stage: StageConfig,
+    conditions: StageSample,
+    activity: ActivityState,
+    *,
+    temperature_scale: float,
+    fatigue_scale: float,
+) -> None:
+    effective_scale = activity.scale * temperature_scale * fatigue_scale
+    row = {
+        "stageId": stage.id,
+        "stageName": stage.name,
+        "airTemp": conditions.air_temp_c,
+        "radiantTemp": conditions.radiant_temp_c,
+        "relativeHumidity": conditions.rh_percent,
+        "airSpeed": conditions.wind_speed_ms,
+        "solarRadiation": conditions.solar_radiation_wm2,
+        "mediumThermalConductivity": conditions.medium_thermal_conductivity_w_mk,
+        "mediumHcScale": conditions.medium_hc_scale,
+        "activityMet": conditions.activity_met,
+        "posture": conditions.posture,
+        "icl17": list(conditions.icl17),
+        "shiveringActivityScale": activity.scale,
+        "shiveringSuppressionCoeff": activity.suppression,
+        "shiveringWorkWatts": activity.work_w,
+        "shiveringTemperatureScale": temperature_scale,
+        "shiveringFatigueScale": fatigue_scale,
+        "effectiveShiveringScale": effective_scale,
+    }
+    if not history:
+        history.update({key: [value] for key, value in row.items()})
+        return
+    for key, value in row.items():
+        history[key].append(value)
+
+
+def _regional_matrix(
+    raw_results: Mapping[str, List[Any]], prefix: str
+) -> List[List[Any]]:
+    columns = [
+        raw_results.get(f"{prefix}{suffix}", []) for suffix in JOS3_REGION_SUFFIXES
+    ]
+    row_count = len(raw_results.get("ModTime", []))
+    if any(len(column) != row_count for column in columns):
+        raise RuntimeError(f"JOS-3 returned an incomplete {prefix} regional series")
+    return [[columns[column][row] for column in range(17)] for row in range(row_count)]
+
+
+def _average(values: Sequence[float]) -> float:
+    return float(sum(values) / len(values)) if values else 0.0
+
+
+def _canonical_scenario(config: ScenarioConfig) -> Dict[str, Any]:
+    return {
+        "schemaVersion": SCENARIO_SCHEMA_VERSION,
+        "subject": {
+            "sex": config.subject.sex,
+            "height_cm": config.subject.height_cm,
+            "weight_kg": config.subject.weight_kg,
+            "age_years": config.subject.age_years,
+            "base_core_temp_c": config.subject.base_core_temp_c,
+        },
+        "stages": [
+            {
+                "id": stage.id,
+                "name": stage.name,
+                "duration_min": stage.duration_min,
+                "environment": {
+                    "air_temp_c": stage.air_temp_c.to_json(),
+                    "wind_speed_ms": stage.wind_speed_ms.to_json(),
+                    "rh_percent": stage.rh_percent.to_json(),
+                    "solar_radiation_wm2": stage.solar_radiation_wm2.to_json(),
+                    "medium_thermal_conductivity_w_mk": (
+                        stage.medium_thermal_conductivity_w_mk.to_json()
+                    ),
+                },
+                "activity_met": stage.activity_met.to_json(),
+                "posture": stage.posture,
+                "icl17": list(stage.icl17),
+            }
+            for stage in config.stages
+        ],
+        "options": {
+            "shivering_suppression_threshold_w": (
+                config.shivering_suppression_threshold_w
+            ),
+        },
+    }
+
+
+def _legacy_payload_to_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    duration_min = max(0, min(int(payload["duration_min"]), MAX_SCENARIO_DURATION_MIN))
+    sex_value = payload.get("sex") or payload.get("gender") or "female"
+    sex = "female" if str(sex_value).lower().startswith("f") else "male"
+    posture = payload.get("posture") or "standing"
+    if posture not in {"standing", "sitting", "lying"}:
+        posture = "standing"
+
+    medium_value = payload.get(
         "medium_thermal_conductivity_w_mk",
         payload.get("medium_k_w_mk", AIR_THERMAL_CONDUCTIVITY_W_MK),
     )
     try:
-        medium_k_w_mk = float(medium_k_raw)
+        medium_k_w_mk = float(medium_value)
     except (TypeError, ValueError):
         medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
     if not math.isfinite(medium_k_w_mk) or medium_k_w_mk <= 0.0:
         medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
-    medium_hc_scale = medium_k_w_mk / AIR_THERMAL_CONDUCTIVITY_W_MK
 
-    sex = payload.get("sex") or payload.get("gender") or "female"
-    sex = "female" if str(sex).lower().startswith("f") else "male"
-    height_cm = float(payload["height_cm"])
-    weight_kg = float(payload["weight_kg"])
-    age_years = int(payload["age_years"])
-    base_core_temp_c = float(payload.get("base_core_temp_c", 36.6))
-    met = float(payload.get("activity_met", payload.get("met", 1.2)))
-    air_temp_c = float(payload["air_temp_c"])
-    wind_ms = float(payload["wind_speed_ms"])
-    rh_percent = float(payload["rh_percent"])
-    solar_wm2 = float(payload.get("solar_radiation_wm2", payload.get("solar_wm2", 0.0)) or 0.0)
-    duration_min = max(0, min(int(payload["duration_min"]), 24 * 60))
-    posture = payload.get("posture") or "standing"
-    if posture not in ("standing", "sitting", "lying"):
-        posture = "standing"
+    threshold_value = payload.get(
+        "shivering_suppression_threshold_w",
+        DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
+    )
+    try:
+        threshold_w = float(threshold_value)
+    except (TypeError, ValueError):
+        threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
+    if not math.isfinite(threshold_w) or threshold_w <= 0.0:
+        threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
 
-    icl17 = _parse_icl17(payload)
-    regional_clo = _icl17_to_regional_clo(icl17)
-    delta_tr_c = (solar_wm2 * SOLAR_EFFECTIVE_FACTOR) / HR_W_M2K
-    bsa = _bsa_m2(height_cm, weight_kg)
-    fat_pct = _body_fat_percent(sex, height_cm, weight_kg, age_years)
-    _simulation_context.set({
-        "shivering_scale": 1.0,
-        "medium_hc_scale": float(medium_hc_scale),
-    })
+    return {
+        "schemaVersion": SCENARIO_SCHEMA_VERSION,
+        "subject": {
+            "sex": sex,
+            "height_cm": float(payload["height_cm"]),
+            "weight_kg": float(payload["weight_kg"]),
+            "age_years": int(payload["age_years"]),
+            "base_core_temp_c": float(payload.get("base_core_temp_c", 36.6)),
+        },
+        "stages": [
+            {
+                "id": "stage-1",
+                "name": "Stage 1",
+                "duration_min": duration_min,
+                "environment": {
+                    "air_temp_c": float(payload["air_temp_c"]),
+                    "wind_speed_ms": float(payload["wind_speed_ms"]),
+                    "rh_percent": float(payload["rh_percent"]),
+                    "solar_radiation_wm2": float(
+                        payload.get(
+                            "solar_radiation_wm2",
+                            payload.get("solar_wm2", 0.0),
+                        )
+                        or 0.0
+                    ),
+                    "medium_thermal_conductivity_w_mk": medium_k_w_mk,
+                },
+                "activity_met": float(
+                    payload.get("activity_met", payload.get("met", 1.2))
+                ),
+                "posture": posture,
+                "icl17": _parse_icl17(payload).tolist(),
+            }
+        ],
+        "options": {
+            "shivering_suppression_threshold_w": threshold_w,
+        },
+    }
 
+
+def simulate_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    config = _normalize_scenario(payload)
+    subject = config.subject
+    bsa = _bsa_m2(subject.height_cm, subject.weight_kg)
+    fat_pct = _body_fat_percent(
+        subject.sex,
+        subject.height_cm,
+        subject.weight_kg,
+        subject.age_years,
+    )
+
+    first_stage = config.stages[0]
+    initial_conditions = _sample_stage(first_stage)
+    _simulation_context.set(
+        {
+            "shivering_scale": 1.0,
+            "medium_hc_scale": initial_conditions.medium_hc_scale,
+        }
+    )
     model = jos3.JOS3(
-        height=height_cm / 100.0,
-        weight=weight_kg,
+        height=subject.height_cm / 100.0,
+        weight=subject.weight_kg,
         fat=fat_pct,
-        age=age_years,
-        sex=sex,
+        age=subject.age_years,
+        sex=subject.sex,
         ex_output=["Tcb", "BFsk", "Mshiv", "Esweat"],
     )
-    model.Ta = air_temp_c
-    model.Tr = air_temp_c + delta_tr_c
-    model.RH = rh_percent
-    model.Va = wind_ms
-    model.posture = posture
-    model.Icl = np.asarray(icl17, dtype=float)
+    initial_activity = _apply_conditions(
+        model,
+        initial_conditions,
+        bsa_m2=bsa,
+        suppression_threshold_w=config.shivering_suppression_threshold_w,
+    )
+    initial_temperature_scale = _temperature_shivering_scale(
+        _latest_tcb(model, subject.base_core_temp_c)
+    )
+    _simulation_context.set(
+        {
+            "shivering_scale": initial_activity.scale * initial_temperature_scale,
+            "medium_hc_scale": initial_conditions.medium_hc_scale,
+        }
+    )
 
-    desired_w_m2 = met * 58.2
-    model.PAR = float(_clamp(desired_w_m2 / float(model.BMR), 0.8, 12.0))
-    m_work_w = max(0.0, (met - 1.0) * 58.2 * bsa)
-    try:
-        m_threshold_w = float(payload.get("shivering_suppression_threshold_w", DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W))
-    except (TypeError, ValueError):
-        m_threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
-    if not math.isfinite(m_threshold_w) or m_threshold_w <= 0.0:
-        m_threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
-    activity_suppression = min(1.0, m_work_w / m_threshold_w)
-    shiv_scale = _clamp(1.0 - activity_suppression, 0.0, 1.0)
+    condition_history: Dict[str, List[Any]] = {}
+    _append_condition_sample(
+        condition_history,
+        first_stage,
+        initial_conditions,
+        initial_activity,
+        temperature_scale=initial_temperature_scale,
+        fatigue_scale=1.0,
+    )
 
-    model.options["shivering_activity_scale"] = float(shiv_scale)
-    model.options["shivering_activity_suppression_coeff"] = float(activity_suppression)
-    model.options["shivering_activity_work_w"] = float(m_work_w)
-    model.options["shivering_activity_threshold_w"] = float(m_threshold_w)
-
+    stage_ranges: List[Dict[str, Any]] = []
+    elapsed_min = 0
     max_shivering_energy_j = 3.3e6
     consumed_shivering_energy_j = 0.0
-    _simulation_context.set({"shivering_scale": float(shiv_scale), "medium_hc_scale": float(medium_hc_scale)})
-    for _step in range(duration_min):
-        current_tcb = _latest_tcb(model, base_core_temp_c)
-        if 34.0 <= current_tcb <= 37.2:
-            f_temp = 1.0
-        elif current_tcb < 34.0:
-            f_temp = max(0.0, (current_tcb - 30.0) / 4.0)
-        else:
-            f_temp = max(0.0, 1.0 - (current_tcb - 37.2) / 0.8)
+    for stage_index, stage in enumerate(config.stages):
+        start_min = elapsed_min
+        for step in range(stage.duration_min):
+            conditions = _sample_stage(stage, step)
+            activity = _apply_conditions(
+                model,
+                conditions,
+                bsa_m2=bsa,
+                suppression_threshold_w=config.shivering_suppression_threshold_w,
+            )
+            consumed_shivering_energy_j += _latest_shivering_w(model) * 60.0
+            fatigue_scale = max(
+                0.0,
+                1.0 - (consumed_shivering_energy_j / max_shivering_energy_j),
+            )
+            temperature_scale = _temperature_shivering_scale(
+                _latest_tcb(model, subject.base_core_temp_c)
+            )
+            effective_shivering_scale = (
+                activity.scale * temperature_scale * fatigue_scale
+            )
+            _simulation_context.set(
+                {
+                    "shivering_scale": effective_shivering_scale,
+                    "medium_hc_scale": conditions.medium_hc_scale,
+                }
+            )
+            model.simulate(times=1, dtime=60)
+            _append_condition_sample(
+                condition_history,
+                stage,
+                conditions,
+                activity,
+                temperature_scale=temperature_scale,
+                fatigue_scale=fatigue_scale,
+            )
 
-        consumed_shivering_energy_j += _latest_shivering_w(model) * 60.0
-        f_fatigue = max(0.0, 1.0 - consumed_shivering_energy_j / max_shivering_energy_j)
-        _simulation_context.set({
-            "shivering_scale": float(shiv_scale * f_temp * f_fatigue),
-            "medium_hc_scale": float(medium_hc_scale),
-        })
-        model.simulate(times=1, dtime=60)
+        elapsed_min += stage.duration_min
+        has_results = stage.duration_min > 0
+        stage_ranges.append(
+            {
+                "id": stage.id,
+                "name": stage.name,
+                "stageIndex": stage_index,
+                "startMinute": start_min,
+                "endMinute": elapsed_min,
+                "durationMin": stage.duration_min,
+                "resultStartIndex": start_min + 1 if has_results else None,
+                "resultEndIndex": elapsed_min if has_results else None,
+                "initialStateIndex": 0 if stage_index == 0 else None,
+            }
+        )
 
     raw_results = _sanitize_jos3_results(model.dict_results())
     time_sec = raw_results.get("ModTime", [])
@@ -343,7 +929,14 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     bf_sk = _sum_segments(raw_results, "BFsk")
     mshiv_w = _sum_segments(raw_results, "Mshiv")
 
-    solar_gain_w = [solar_wm2 * bsa * SOLAR_EFFECTIVE_FACTOR for _ in time_min]
+    expected_rows = len(time_min)
+    if any(len(values) != expected_rows for values in condition_history.values()):
+        raise RuntimeError("condition history is not aligned with JOS-3 results")
+
+    solar_gain_w = [
+        float(value) * bsa * SOLAR_EFFECTIVE_FACTOR
+        for value in condition_history["solarRadiation"]
+    ]
     met_arr = np.asarray(met_w, dtype=float)
     res_arr = np.asarray(res_w, dtype=float)
     dry_arr = np.asarray(dry_loss_w, dtype=float)
@@ -351,7 +944,11 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     net_rate_w = (met_arr - res_arr - dry_arr - latent_arr).tolist()
     total_gain_w = met_arr.tolist()
     total_loss_w = (res_arr + dry_arr + latent_arr).tolist()
-    shiver_intensity = (100.0 * (np.asarray(mshiv_w) / np.maximum(1e-6, met_arr))).clip(0, 100).tolist()
+    shiver_intensity = (
+        (100.0 * (np.asarray(mshiv_w) / np.maximum(1e-6, met_arr)))
+        .clip(0, 100)
+        .tolist()
+    )
     wet_mean = [float(x) for x in raw_results.get("WetMean", [])]
     eff_sweat = np.maximum(0.0, (np.asarray(wet_mean) - 0.06) / 0.94).clip(0, 1)
     sweat_intensity = (100.0 * eff_sweat).tolist()
@@ -362,29 +959,36 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
         dilate_i = [0.0 for _ in time_min]
     else:
         bf = np.asarray(bf_sk, dtype=float)
-        vaso_i = (100.0 * np.maximum(0.0, (baseline_bf - bf) / baseline_bf)).clip(0, 100).tolist()
-        dilate_i = (100.0 * np.maximum(0.0, (bf - baseline_bf) / baseline_bf)).clip(0, 100).tolist()
+        vaso_i = (
+            (100.0 * np.maximum(0.0, (baseline_bf - bf) / baseline_bf))
+            .clip(0, 100)
+            .tolist()
+        )
+        dilate_i = (
+            (100.0 * np.maximum(0.0, (bf - baseline_bf) / baseline_bf))
+            .clip(0, 100)
+            .tolist()
+        )
 
-    weighted_sum = 0.0
-    weight_total = 0.0
+    comfort_sum = 0.0
+    instant_comfort_series: List[float] = []
     comfort_series: List[float] = []
     for idx in range(len(time_min)):
+        regional_clo = _icl17_to_regional_clo(
+            np.asarray(condition_history["icl17"][idx], dtype=float)
+        )
         instant = _calculate_instant_comfort_score(
             core_t=float(core_temp[idx]),
-            base_core_t=base_core_temp_c,
+            base_core_t=subject.base_core_temp_c,
             skin_t=float(skin_temp[idx]),
             shiver_intensity=float(shiver_intensity[idx]),
             sweat_intensity=float(sweat_intensity[idx]),
             net_rate=float(net_rate_w[idx]),
             regional_clo=regional_clo,
         )
-        weight = float(idx + 1)
-        weighted_sum += instant * weight
-        weight_total += weight
-        comfort_series.append(weighted_sum / weight_total if weight_total else instant)
-
-    def average(values: List[float]) -> float:
-        return float(sum(values) / len(values)) if values else 0.0
+        comfort_sum += instant
+        instant_comfort_series.append(instant)
+        comfort_series.append(comfort_sum / float(idx + 1))
 
     final_state = {
         "heatProductionWatts": float(met_w[-1]) if met_w else 0.0,
@@ -392,31 +996,54 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
         "heatLossResp": float(res_w[-1]) if res_w else 0.0,
         "heatLossDry": float(dry_loss_w[-1]) if dry_loss_w else 0.0,
         "sweatingHeatLoss": float(sweat_loss_w[-1]) if sweat_loss_w else 0.0,
-        "skinLatentHeatLoss": float(skin_latent_loss_w[-1]) if skin_latent_loss_w else 0.0,
+        "skinLatentHeatLoss": float(skin_latent_loss_w[-1])
+        if skin_latent_loss_w
+        else 0.0,
         "netHeatRateWatts": float(net_rate_w[-1]) if net_rate_w else 0.0,
         "shiveringIntensity": float(shiver_intensity[-1]) if shiver_intensity else 0.0,
         "sweatingIntensity": float(sweat_intensity[-1]) if sweat_intensity else 0.0,
         "vasoconstrictionIntensity": float(vaso_i[-1]) if vaso_i else 0.0,
         "vasodilationIntensity": float(dilate_i[-1]) if dilate_i else 0.0,
-        "deltaTrC": float(delta_tr_c),
-        "shiveringActivityScale": float(shiv_scale),
-        "shiveringSuppressionCoeff": float(activity_suppression),
-        "shiveringWorkWatts": float(m_work_w),
-        "shiveringSuppressionThresholdW": float(m_threshold_w),
-        "mediumThermalConductivityWmK": float(medium_k_w_mk),
-        "mediumHcScale": float(medium_hc_scale),
+        "deltaTrC": float(condition_history["radiantTemp"][-1])
+        - float(condition_history["airTemp"][-1]),
+        "shiveringActivityScale": float(
+            condition_history["shiveringActivityScale"][-1]
+        ),
+        "shiveringSuppressionCoeff": float(
+            condition_history["shiveringSuppressionCoeff"][-1]
+        ),
+        "shiveringWorkWatts": float(condition_history["shiveringWorkWatts"][-1]),
+        "shiveringSuppressionThresholdW": float(
+            config.shivering_suppression_threshold_w
+        ),
+        "shiveringFatigueScale": float(condition_history["shiveringFatigueScale"][-1]),
+        "effectiveShiveringScale": float(
+            condition_history["effectiveShiveringScale"][-1]
+        ),
+        "mediumThermalConductivityWmK": float(
+            condition_history["mediumThermalConductivity"][-1]
+        ),
+        "mediumHcScale": float(condition_history["mediumHcScale"][-1]),
     }
     averages = {
-        "heatProductionWatts": average(met_w),
-        "solarHeatGainWatts": average(solar_gain_w),
-        "heatLossResp": average(res_w),
-        "heatLossDry": average(dry_loss_w),
-        "sweatingHeatLoss": average(sweat_loss_w),
-        "skinLatentHeatLoss": average(skin_latent_loss_w),
-        "netRate": average(net_rate_w),
+        "heatProductionWatts": _average(met_w),
+        "solarHeatGainWatts": _average(solar_gain_w),
+        "heatLossResp": _average(res_w),
+        "heatLossDry": _average(dry_loss_w),
+        "sweatingHeatLoss": _average(sweat_loss_w),
+        "skinLatentHeatLoss": _average(skin_latent_loss_w),
+        "netRate": _average(net_rate_w),
     }
-    vaso_active = bool(final_state["vasoconstrictionIntensity"] >= 10.0 and final_state["vasoconstrictionIntensity"] > final_state["vasodilationIntensity"])
-    dilate_active = bool(final_state["vasodilationIntensity"] >= 10.0 and final_state["vasodilationIntensity"] > final_state["vasoconstrictionIntensity"])
+    vaso_active = bool(
+        final_state["vasoconstrictionIntensity"] >= 10.0
+        and final_state["vasoconstrictionIntensity"]
+        > final_state["vasodilationIntensity"]
+    )
+    dilate_active = bool(
+        final_state["vasodilationIntensity"] >= 10.0
+        and final_state["vasodilationIntensity"]
+        > final_state["vasoconstrictionIntensity"]
+    )
     shiver_active = bool(final_state["shiveringIntensity"] >= 5.0)
     sweat_active = bool(final_state["sweatingIntensity"] >= 10.0)
     data_history = {
@@ -436,12 +1063,99 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
         "sweatingIntensity": sweat_intensity,
         "vasoconstrictionIntensity": vaso_i,
         "vasodilationIntensity": dilate_i,
+        "instantComfortScore": instant_comfort_series,
         "comfortScore": comfort_series,
         "totalSkinLoss": thl_sk_w,
     }
+    data_history.update(condition_history)
+
+    regional_metrics = {
+        "regionIds": list(JOS3_REGION_SUFFIXES),
+        "jos3RegionSuffixes": list(JOS3_REGION_SUFFIXES),
+        "units": {
+            "Tsk": "degC",
+            "Tcr": "degC",
+            "Wet": "fraction",
+            "BFsk": "L/h",
+            "Mshiv": "W",
+            "Esweat": "W",
+            "THLsk": "W",
+            "Icl": "clo",
+        },
+        "Tsk": _regional_matrix(raw_results, "Tsk"),
+        "Tcr": _regional_matrix(raw_results, "Tcr"),
+        "Wet": _regional_matrix(raw_results, "Wet"),
+        "BFsk": _regional_matrix(raw_results, "BFsk"),
+        "Mshiv": _regional_matrix(raw_results, "Mshiv"),
+        "Esweat": _regional_matrix(raw_results, "Esweat"),
+        "THLsk": _regional_matrix(raw_results, "THLsk"),
+        "Icl": [list(row) for row in condition_history["icl17"]],
+    }
+
+    stage_summaries: List[Dict[str, Any]] = []
+    for stage_range in stage_ranges:
+        result_start = stage_range["resultStartIndex"]
+        result_end = stage_range["resultEndIndex"]
+        if result_start is None or result_end is None:
+            result_indices: slice | List[int] = []
+            final_index = stage_range["startMinute"]
+        else:
+            result_indices = slice(result_start, result_end + 1)
+            final_index = result_end
+
+        def stage_values(key: str) -> List[float]:
+            if isinstance(result_indices, list):
+                return []
+            return [float(value) for value in data_history[key][result_indices]]
+
+        stage_core = stage_values("coreTemp")
+        stage_skin = stage_values("skinTemp")
+        stage_net = stage_values("netRate")
+        stage_comfort = stage_values("instantComfortScore")
+        stage_summaries.append(
+            {
+                **stage_range,
+                "sampleCount": len(stage_core),
+                "averages": {
+                    "coreTempC": _average(stage_core),
+                    "skinTempC": _average(stage_skin),
+                    "netRateW": _average(stage_net),
+                    "comfortScore": _average(stage_comfort),
+                },
+                "extrema": {
+                    "coreTempMinC": min(stage_core) if stage_core else None,
+                    "coreTempMaxC": max(stage_core) if stage_core else None,
+                    "skinTempMinC": min(stage_skin) if stage_skin else None,
+                    "skinTempMaxC": max(stage_skin) if stage_skin else None,
+                },
+                "final": {
+                    "timeMin": float(time_min[final_index]),
+                    "coreTempC": float(core_temp[final_index]),
+                    "skinTempC": float(skin_temp[final_index]),
+                    "netRateW": float(net_rate_w[final_index]),
+                    "comfortScore": float(comfort_series[final_index]),
+                },
+            }
+        )
+
     return {
-        "finalTemp": float(core_temp[-1]) if core_temp else base_core_temp_c,
-        "coreTemp": float(base_core_temp_c),
+        "schemaVersion": SCENARIO_SCHEMA_VERSION,
+        "scenario": _canonical_scenario(config),
+        "timelineSemantics": {
+            "initialStateIndex": 0,
+            "stageIntervals": "[startMinute, endMinute)",
+            "stageResultRows": "resultStartIndex through resultEndIndex, inclusive",
+            "profileSampling": (
+                "The initial row uses each first-stage profile start. "
+                "Each simulated minute uses one profile sample. "
+                "The first and last minute use start and end when duration exceeds one."
+            ),
+        },
+        "stageRanges": stage_ranges,
+        "stageSummaries": stage_summaries,
+        "regionalMetrics": regional_metrics,
+        "finalTemp": float(core_temp[-1]) if core_temp else subject.base_core_temp_c,
+        "coreTemp": float(subject.base_core_temp_c),
         "finalSkinTemp": float(skin_temp[-1]) if skin_temp else 0.0,
         "comfortScore": float(comfort_series[-1]) if comfort_series else 0.0,
         "vasoActive": vaso_active,
@@ -455,4 +1169,16 @@ def simulate_jos3(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-__all__ = ["simulate_jos3", "_json_sanitize", "jos3"]
+def simulate_jos3(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    """Run one legacy static stage through the versioned scenario engine."""
+    return simulate_scenario(_legacy_payload_to_scenario(payload))
+
+
+__all__ = [
+    "MAX_SCENARIO_DURATION_MIN",
+    "SCENARIO_SCHEMA_VERSION",
+    "simulate_jos3",
+    "simulate_scenario",
+    "_json_sanitize",
+    "jos3",
+]

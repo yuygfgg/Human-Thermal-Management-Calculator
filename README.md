@@ -1,38 +1,102 @@
-## Human Thermal Management Calculator
+# Human Thermal Management Calculator
 
 **Scientifically prove you're not cold (or hot).**
 
-An fun web-based tool for simulating human thermal comfort. It models core and skin temperature and physiological responses based on environment, activity, and highly customizable clothing setups.
+Human Thermal Management Calculator is a browser-based workbench for multi-stage thermal physiology simulations.
 
-Key features include a real-time dashboard with detailed multi-series charts, a comprehensive comfort score, and the ability to import/export full simulation reports as CSV files.
+## Main functions
 
-### How to Use
+- Create, duplicate, remove, and reorder scenario stages.
+- Set constant values or linear start-to-end profiles for each stage.
+- Assign a separate outfit to each stage and calculate ISO 9920 ensemble insulation.
+- Run one continuous JOS-3 simulation for the complete scenario.
+- Inspect skin temperature, core temperature, wettedness, skin blood flow, shivering heat, sweat evaporation, skin heat loss, and clothing insulation on a 17-node body map.
+- Link the body map, time control, stage markers, regional details, and trend charts.
+- View whole-body temperature, heat balance, physiological responses, stage summaries, and raw JOS-3 data.
+- Switch between Chinese and English and between light and dark themes.
 
-1. Open <https://calc.yuygfgg.xyz/>.
-2. Adjust parameters and build your outfit.
-3. Analyze the real-time simulation dashboard for detailed insights.
-4. Import or export full simulation reports via CSV.
+## Run the workbench
 
-### Architecture
+Open <https://calc.yuygfgg.xyz/>.
 
-The calculator runs the JOS-3 model in the browser.  Pyodide provides a pinned
-CPython WebAssembly runtime, NumPy provides the numerical operations, and
-`simulation-worker.js` runs the calculation in a Web Worker.  The page does not
-require a Python server or an API endpoint.
+1. Select a template or edit the current scenario, or load from a JSON file.
+2. Set the subject values.
+3. Add and arrange the required stages.
+4. Set the duration, conditions, activity, posture, and outfit for each stage.
+5. Select Run scenario.
+6. Use the time control and body map to inspect the result.
+7. Export the result as a CSV file or save parameters as a JSON file.
 
-The JOS-3 wheel is vendored at
-`vendor/jos3-0.5.0-py3-none-any.whl`.  The wheel is distributed under the MIT
-license.  Pyodide is loaded from its pinned CDN release at runtime.
+## Development
 
-### Local Development
-
-Use any static HTTP server. For example:
+Install the front-end packages:
 
 ```bash
-python3 -m http.server 8000
+npm ci
 ```
 
-Open <http://127.0.0.1:8000/>.
+Start the Vite development server:
+
+```bash
+npm run dev
+```
+
+Open the URL that Vite prints. Do not open `index.html` through a `file://` URL. The Web Worker and simulation assets require HTTP.
+
+Install the Python test dependencies in a virtual environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+## Tests
+
+Run the TypeScript check:
+
+```bash
+npm run check
+```
+
+Run the front-end unit and component tests:
+
+```bash
+npm test
+```
+
+Run the Python simulation tests:
+
+```bash
+python -m unittest discover -s tests -p 'test_simulation_core.py' -v
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Vite writes the static site to `dist`.
+
+## Static deployment
+
+Serve the complete `dist` directory from one HTTP or HTTPS origin. Keep the copied worker, Python core, and wheel at their generated relative paths.
+
+Test the production build locally:
+
+```bash
+npm run preview
+```
+
+You can also use a basic static server:
+
+```bash
+python3 -m http.server 8000 --directory dist
+```
+
+Then open <http://127.0.0.1:8000/>.
 
 ### License
 
