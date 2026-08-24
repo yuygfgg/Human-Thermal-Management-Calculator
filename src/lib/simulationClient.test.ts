@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SimulationPayload } from "../domain/scenario";
-import type { SimulationResult } from "../domain/types";
+import type { SimulationResult, SimulationScenario } from "../domain/types";
 import { SimulationClient } from "./simulationClient";
 
 class WorkerDouble extends EventTarget {
@@ -26,30 +25,31 @@ class WorkerDouble extends EventTarget {
   }
 }
 
-const payload: SimulationPayload = {
+const scenario: SimulationScenario = {
   schemaVersion: 1,
+  name: "Baseline scenario",
   subject: {
     sex: "male",
-    height_cm: 175,
-    weight_kg: 70,
-    age_years: 35,
-    base_core_temp_c: 37,
+    heightCm: 175,
+    weightKg: 70,
+    ageYears: 35,
+    referenceCoreTempC: 37,
   },
   stages: [
     {
       id: "stage-1",
       name: "Baseline",
-      duration_min: 30,
+      durationMin: 30,
       environment: {
-        air_temp_c: { start: 24, end: 24 },
-        wind_speed_ms: { start: 0.1, end: 0.1 },
-        rh_percent: { start: 50, end: 50 },
-        solar_radiation_wm2: { start: 0, end: 0 },
-        medium_thermal_conductivity_w_mk: { start: 0.026, end: 0.026 },
+        airTempC: { start: 24, end: 24 },
+        windSpeedMs: { start: 0.1, end: 0.1 },
+        relativeHumidityPercent: { start: 50, end: 50 },
+        solarRadiationWm2: { start: 0, end: 0 },
+        mediumThermalConductivityWmK: { start: 0.026, end: 0.026 },
       },
-      activity_met: { start: 1.2, end: 1.2 },
+      activityMet: { start: 1.2, end: 1.2 },
       posture: "sitting",
-      icl17: Array.from({ length: 17 }, () => 0.5),
+      outfit: [],
     },
   ],
 };
@@ -81,7 +81,7 @@ describe("SimulationClient", () => {
     const listener = vi.fn();
     client.subscribe(listener);
 
-    const completion = client.run(payload);
+    const completion = client.run(scenario);
     const worker = WorkerDouble.instances[0];
 
     const scriptUrl = new URL(String(worker.scriptUrl));
@@ -90,7 +90,7 @@ describe("SimulationClient", () => {
     expect(worker.postMessage).toHaveBeenCalledWith({
       type: "simulate",
       id: 1,
-      payload,
+      scenario,
     });
     expect(listener).toHaveBeenLastCalledWith({ status: "loading" });
 
@@ -131,7 +131,7 @@ describe("SimulationClient", () => {
     const listener = vi.fn();
     client.subscribe(listener);
 
-    const cancelledRun = client.run(payload);
+    const cancelledRun = client.run(scenario);
     const firstWorker = WorkerDouble.instances[0];
 
     client.cancel();
@@ -142,14 +142,14 @@ describe("SimulationClient", () => {
     expect(firstWorker.terminate).toHaveBeenCalledOnce();
     expect(listener).toHaveBeenLastCalledWith({ status: "idle" });
 
-    const nextRun = client.run(payload);
+    const nextRun = client.run(scenario);
     const secondWorker = WorkerDouble.instances[1];
     expect(secondWorker).toBeDefined();
     expect(secondWorker).not.toBe(firstWorker);
     expect(secondWorker.postMessage).toHaveBeenCalledWith({
       type: "simulate",
       id: 2,
-      payload,
+      scenario,
     });
 
     secondWorker.emitMessage({ type: "result", id: 2, result });
@@ -161,7 +161,7 @@ describe("SimulationClient", () => {
     const listener = vi.fn();
     client.subscribe(listener);
 
-    const failedRun = client.run(payload);
+    const failedRun = client.run(scenario);
     const failedWorker = WorkerDouble.instances[0];
 
     failedWorker.emitError("Worker initialization failed");
@@ -171,7 +171,7 @@ describe("SimulationClient", () => {
       detail: "Worker initialization failed",
     });
 
-    const retry = client.run(payload);
+    const retry = client.run(scenario);
     const retryWorker = WorkerDouble.instances.at(-1)!;
     retryWorker.emitMessage({ type: "result", id: 2, result });
     await expect(retry).resolves.toBe(result);

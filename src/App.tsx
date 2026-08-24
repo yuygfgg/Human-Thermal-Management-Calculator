@@ -4,7 +4,7 @@ import { AppHeader } from "./components/AppHeader";
 import { ResultsDashboard } from "./components/ResultsDashboard";
 import { ScenarioPanel } from "./components/ScenarioPanel";
 import { REGIONAL_METRICS } from "./domain/constants";
-import { toSimulationPayload, validateScenario } from "./domain/scenario";
+import { validateScenario } from "./domain/scenario";
 import type {
   BodySegment,
   Language,
@@ -221,7 +221,7 @@ export default function App() {
     }
     const runFingerprint = fingerprint;
     try {
-      const result = await client.run(toSimulationPayload(state.scenario));
+      const result = await client.run(state.scenario);
       dispatch({ type: "simulation/success", result, fingerprint: runFingerprint });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {

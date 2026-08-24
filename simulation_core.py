@@ -1,14 +1,29 @@
 from __future__ import annotations
 
 import contextvars
+import json
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence
 
 import numpy as np
 
 import jos3
 
+with Path(__file__).with_name("scenario-contract.json").open(encoding="utf-8") as file:
+    SCENARIO_CONTRACT = json.load(file)
+
+SCENARIO_SCHEMA_VERSION = int(SCENARIO_CONTRACT["schemaVersion"])
+SCENARIO_LIMITS = SCENARIO_CONTRACT["limits"]
+CLOTHING_SEGMENTS = tuple(SCENARIO_CONTRACT["clothingSegments"])
+CLOTHING_CATEGORIES = frozenset(SCENARIO_CONTRACT["clothingCategories"])
+POSTURES = frozenset(SCENARIO_CONTRACT["postures"])
+CLOTHING_INSULATION = SCENARIO_CONTRACT["clothingInsulation"]
+CLOTHING_SEGMENT_AREA_FRACTIONS = CLOTHING_INSULATION["segmentAreaFractions"]
+BODY_TO_CLOTHING_SEGMENT = CLOTHING_INSULATION["bodyToClothingSegment"]
+ISO_9920_INTERCEPT_CLO = float(CLOTHING_INSULATION["iso9920InterceptClo"])
+ISO_9920_GARMENT_SUM_FACTOR = float(CLOTHING_INSULATION["iso9920GarmentSumFactor"])
 
 _simulation_context: contextvars.ContextVar[Dict[str, float]] = contextvars.ContextVar(
     "htm_simulation_context",
@@ -36,8 +51,7 @@ HR_W_M2K = 4.7
 SOLAR_EFFECTIVE_FACTOR = 0.12
 AIR_THERMAL_CONDUCTIVITY_W_MK = 0.026
 DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W = 270.0
-SCENARIO_SCHEMA_VERSION = 1
-MAX_SCENARIO_DURATION_MIN = 24 * 60
+MAX_SCENARIO_DURATION_MIN = int(SCENARIO_LIMITS["durationMin"]["maximum"])
 
 JOS3_REGION_SUFFIXES = (
     "Head",
@@ -71,9 +85,7 @@ class NumericProfile:
         fraction = step / (duration_min - 1)
         return self.start + ((self.end - self.start) * fraction)
 
-    def to_json(self) -> float | Dict[str, float]:
-        if self.start == self.end:
-            return self.start
+    def to_json(self) -> Dict[str, float]:
         return {"start": self.start, "end": self.end}
 
 
@@ -84,6 +96,17 @@ class SubjectConfig:
     weight_kg: float
     age_years: int
     base_core_temp_c: float
+
+
+@dataclass(frozen=True)
+class GarmentConfig:
+    id: str
+    instance_id: str
+    name_zh: str
+    name_en: str
+    category: str
+    modifier: float
+    segment_clo: tuple[tuple[str, float], ...]
 
 
 @dataclass(frozen=True)
@@ -98,11 +121,13 @@ class StageConfig:
     medium_thermal_conductivity_w_mk: NumericProfile
     activity_met: NumericProfile
     posture: str
+    outfit: tuple[GarmentConfig, ...]
     icl17: tuple[float, ...]
 
 
 @dataclass(frozen=True)
 class ScenarioConfig:
+    name: str
     subject: SubjectConfig
     stages: tuple[StageConfig, ...]
     shivering_suppression_threshold_w: float
@@ -255,31 +280,6 @@ def _body_fat_percent(
     return _clamp(float(fat), 3.0, 60.0)
 
 
-def _parse_icl17(payload: Mapping[str, Any], *, strict: bool = False) -> np.ndarray:
-    icl17 = payload.get("icl17")
-    if not isinstance(icl17, (list, tuple, np.ndarray)) or len(icl17) != 17:
-        raise ValueError("icl17 must be a 17-length array in JOS-3 segment order")
-
-    values = []
-    for index, value in enumerate(icl17):
-        try:
-            if isinstance(value, bool):
-                raise TypeError
-            number = float(value)
-        except (TypeError, ValueError):
-            if strict:
-                raise ValueError(
-                    f"icl17[{index}] must be a finite non-negative number"
-                ) from None
-            number = 0.0
-        if not math.isfinite(number) or number < 0.0:
-            if strict:
-                raise ValueError(f"icl17[{index}] must be a finite non-negative number")
-            number = 0.0
-        values.append(number)
-    return np.asarray(values, dtype=float)
-
-
 def _require_mapping(value: Any, path: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{path} must be an object")
@@ -294,12 +294,11 @@ def _number(
     maximum: float | None = None,
     exclusive_minimum: bool = False,
 ) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(
+        value, (int, float, np.integer, np.floating)
+    ):
         raise ValueError(f"{path} must be a finite number")
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        raise ValueError(f"{path} must be a finite number") from None
+    number = float(value)
     if not math.isfinite(number):
         raise ValueError(f"{path} must be a finite number")
     if minimum is not None:
@@ -329,73 +328,158 @@ def _integer(
     return number
 
 
-def _profile(
-    value: Any,
-    path: str,
-    *,
-    minimum: float | None = None,
-    maximum: float | None = None,
-    exclusive_minimum: bool = False,
-) -> NumericProfile:
-    if isinstance(value, Mapping):
-        if "start" not in value or "end" not in value:
-            raise ValueError(f"{path} profile must contain start and end")
-        start_value = value["start"]
-        end_value = value["end"]
-    else:
-        start_value = value
-        end_value = value
-    start = _number(
-        start_value,
-        f"{path}.start",
-        minimum=minimum,
-        maximum=maximum,
-        exclusive_minimum=exclusive_minimum,
+def _bounded_number(value: Any, path: str, limit_name: str) -> float:
+    limit = SCENARIO_LIMITS[limit_name]
+    return _number(
+        value,
+        path,
+        minimum=float(limit["minimum"]),
+        maximum=float(limit["maximum"]),
+        exclusive_minimum=bool(limit.get("exclusiveMinimum", False)),
     )
-    end = _number(
-        end_value,
-        f"{path}.end",
-        minimum=minimum,
-        maximum=maximum,
-        exclusive_minimum=exclusive_minimum,
+
+
+def _bounded_integer(value: Any, path: str, limit_name: str) -> int:
+    limit = SCENARIO_LIMITS[limit_name]
+    return _integer(
+        value,
+        path,
+        minimum=int(limit["minimum"]),
+        maximum=int(limit["maximum"]),
     )
+
+
+def _non_empty_string(value: Any, path: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{path} must be a non-empty string")
+    return value
+
+
+def _profile(value: Any, path: str, limit_name: str) -> NumericProfile:
+    profile = _require_mapping(value, path)
+    if "start" not in profile or "end" not in profile:
+        raise ValueError(f"{path} profile must contain start and end")
+    start = _bounded_number(profile["start"], f"{path}.start", limit_name)
+    end = _bounded_number(profile["end"], f"{path}.end", limit_name)
     return NumericProfile(start=start, end=end)
 
 
-def _normalize_scenario(payload: Mapping[str, Any]) -> ScenarioConfig:
-    scenario = _require_mapping(payload, "scenario")
+def _normalize_outfit(value: Any, path: str) -> tuple[GarmentConfig, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise ValueError(f"{path} must be an array")
+
+    garments: List[GarmentConfig] = []
+    seen_instance_ids: set[str] = set()
+    for index, raw_garment in enumerate(value):
+        garment_path = f"{path}[{index}]"
+        garment = _require_mapping(raw_garment, garment_path)
+        garment_id = _non_empty_string(garment.get("id"), f"{garment_path}.id")
+        instance_id = _non_empty_string(
+            garment.get("instanceId"), f"{garment_path}.instanceId"
+        )
+        if instance_id in seen_instance_ids:
+            raise ValueError(f"{garment_path}.instanceId must be unique in the stage")
+        seen_instance_ids.add(instance_id)
+
+        category = garment.get("category")
+        if not isinstance(category, str) or category not in CLOTHING_CATEGORIES:
+            raise ValueError(f"{garment_path}.category is unknown")
+
+        raw_segment_clo = _require_mapping(
+            garment.get("segmentClo"), f"{garment_path}.segmentClo"
+        )
+        segment_clo: List[tuple[str, float]] = []
+        for segment, raw_clo in raw_segment_clo.items():
+            segment_path = f"{garment_path}.segmentClo.{segment}"
+            if segment not in CLOTHING_SEGMENTS:
+                raise ValueError(f"{segment_path} is an unknown clothing segment")
+            segment_clo.append(
+                (segment, _bounded_number(raw_clo, segment_path, "clothingClo"))
+            )
+
+        garments.append(
+            GarmentConfig(
+                id=garment_id,
+                instance_id=instance_id,
+                name_zh=_non_empty_string(
+                    garment.get("nameZh"), f"{garment_path}.nameZh"
+                ),
+                name_en=_non_empty_string(
+                    garment.get("nameEn"), f"{garment_path}.nameEn"
+                ),
+                category=str(category),
+                modifier=_bounded_number(
+                    garment.get("modifier"),
+                    f"{garment_path}.modifier",
+                    "garmentModifier",
+                ),
+                segment_clo=tuple(segment_clo),
+            )
+        )
+    return tuple(garments)
+
+
+def _outfit_to_icl17(
+    outfit: Sequence[GarmentConfig], stage_path: str
+) -> tuple[float, ...]:
+    summed_regional_clo = {segment: 0.0 for segment in CLOTHING_SEGMENTS}
+    for garment in outfit:
+        for segment, clo in garment.segment_clo:
+            summed_regional_clo[segment] += clo * garment.modifier
+
+    garment_sum = sum(
+        summed_regional_clo[segment] * float(CLOTHING_SEGMENT_AREA_FRACTIONS[segment])
+        for segment in CLOTHING_SEGMENTS
+    )
+    if garment_sum == 0.0:
+        regional_clo = summed_regional_clo
+    else:
+        ensemble_clo = (
+            ISO_9920_INTERCEPT_CLO + ISO_9920_GARMENT_SUM_FACTOR * garment_sum
+        )
+        scale = ensemble_clo / garment_sum
+        regional_clo = {
+            segment: summed_regional_clo[segment] * scale
+            for segment in CLOTHING_SEGMENTS
+        }
+
+    values = tuple(
+        regional_clo[BODY_TO_CLOTHING_SEGMENT[body_segment]]
+        for body_segment in SCENARIO_CONTRACT["bodySegments"]
+    )
+    for index, clo in enumerate(values):
+        _bounded_number(clo, f"{stage_path}.icl17[{index}]", "clothingClo")
+    return values
+
+
+def _normalize_scenario(scenario: Mapping[str, Any]) -> ScenarioConfig:
+    scenario = _require_mapping(scenario, "scenario")
     schema_version = _integer(scenario.get("schemaVersion"), "schemaVersion")
     if schema_version != SCENARIO_SCHEMA_VERSION:
         raise ValueError(
             f"schemaVersion must be {SCENARIO_SCHEMA_VERSION}; received {schema_version}"
         )
 
+    scenario_name = _non_empty_string(scenario.get("name"), "name")
     subject_value = _require_mapping(scenario.get("subject"), "subject")
-    sex_value = subject_value.get("sex", subject_value.get("gender"))
-    if not isinstance(sex_value, str) or sex_value.lower() not in {"female", "male"}:
+    sex_value = subject_value.get("sex")
+    if not isinstance(sex_value, str) or sex_value not in {"female", "male"}:
         raise ValueError("subject.sex must be 'female' or 'male'")
     subject = SubjectConfig(
-        sex=sex_value.lower(),
-        height_cm=_number(
-            subject_value.get("height_cm"),
-            "subject.height_cm",
-            minimum=0.0,
-            exclusive_minimum=True,
+        sex=str(sex_value),
+        height_cm=_bounded_number(
+            subject_value.get("heightCm"), "subject.heightCm", "heightCm"
         ),
-        weight_kg=_number(
-            subject_value.get("weight_kg"),
-            "subject.weight_kg",
-            minimum=0.0,
-            exclusive_minimum=True,
+        weight_kg=_bounded_number(
+            subject_value.get("weightKg"), "subject.weightKg", "weightKg"
         ),
-        age_years=_integer(
-            subject_value.get("age_years"),
-            "subject.age_years",
-            minimum=1,
+        age_years=_bounded_integer(
+            subject_value.get("ageYears"), "subject.ageYears", "ageYears"
         ),
-        base_core_temp_c=_number(
-            subject_value.get("base_core_temp_c", 36.6),
-            "subject.base_core_temp_c",
+        base_core_temp_c=_bounded_number(
+            subject_value.get("referenceCoreTempC"),
+            "subject.referenceCoreTempC",
+            "referenceCoreTempC",
         ),
     )
 
@@ -411,21 +495,14 @@ def _normalize_scenario(payload: Mapping[str, Any]) -> ScenarioConfig:
     for index, raw_stage in enumerate(stages_value):
         path = f"stages[{index}]"
         stage_value = _require_mapping(raw_stage, path)
-        stage_id = stage_value.get("id")
-        name = stage_value.get("name")
-        if not isinstance(stage_id, str) or not stage_id.strip():
-            raise ValueError(f"{path}.id must be a non-empty string")
+        stage_id = _non_empty_string(stage_value.get("id"), f"{path}.id")
+        name = _non_empty_string(stage_value.get("name"), f"{path}.name")
         if stage_id in seen_ids:
             raise ValueError(f"{path}.id must be unique")
         seen_ids.add(stage_id)
-        if not isinstance(name, str) or not name.strip():
-            raise ValueError(f"{path}.name must be a non-empty string")
 
-        duration_min = _integer(
-            stage_value.get("duration_min"),
-            f"{path}.duration_min",
-            minimum=0,
-            maximum=MAX_SCENARIO_DURATION_MIN,
+        duration_min = _bounded_integer(
+            stage_value.get("durationMin"), f"{path}.durationMin", "durationMin"
         )
         total_duration += duration_min
         if total_duration > MAX_SCENARIO_DURATION_MIN:
@@ -437,71 +514,57 @@ def _normalize_scenario(payload: Mapping[str, Any]) -> ScenarioConfig:
             stage_value.get("environment"), f"{path}.environment"
         )
         posture = stage_value.get("posture")
-        if posture not in {"standing", "sitting", "lying"}:
+        if not isinstance(posture, str) or posture not in POSTURES:
             raise ValueError(
                 f"{path}.posture must be 'standing', 'sitting', or 'lying'"
             )
-        icl17 = _parse_icl17(stage_value, strict=True)
+        outfit = _normalize_outfit(stage_value.get("outfit"), f"{path}.outfit")
         stages.append(
             StageConfig(
                 id=stage_id,
                 name=name,
                 duration_min=duration_min,
                 air_temp_c=_profile(
-                    environment.get("air_temp_c"),
-                    f"{path}.environment.air_temp_c",
+                    environment.get("airTempC"),
+                    f"{path}.environment.airTempC",
+                    "airTempC",
                 ),
                 wind_speed_ms=_profile(
-                    environment.get("wind_speed_ms"),
-                    f"{path}.environment.wind_speed_ms",
-                    minimum=0.0,
+                    environment.get("windSpeedMs"),
+                    f"{path}.environment.windSpeedMs",
+                    "windSpeedMs",
                 ),
                 rh_percent=_profile(
-                    environment.get("rh_percent"),
-                    f"{path}.environment.rh_percent",
-                    minimum=0.0,
-                    maximum=100.0,
+                    environment.get("relativeHumidityPercent"),
+                    f"{path}.environment.relativeHumidityPercent",
+                    "relativeHumidityPercent",
                 ),
                 solar_radiation_wm2=_profile(
-                    environment.get("solar_radiation_wm2", 0.0),
-                    f"{path}.environment.solar_radiation_wm2",
-                    minimum=0.0,
+                    environment.get("solarRadiationWm2"),
+                    f"{path}.environment.solarRadiationWm2",
+                    "solarRadiationWm2",
                 ),
                 medium_thermal_conductivity_w_mk=_profile(
-                    environment.get(
-                        "medium_thermal_conductivity_w_mk",
-                        AIR_THERMAL_CONDUCTIVITY_W_MK,
-                    ),
-                    f"{path}.environment.medium_thermal_conductivity_w_mk",
-                    minimum=0.0,
-                    exclusive_minimum=True,
+                    environment.get("mediumThermalConductivityWmK"),
+                    f"{path}.environment.mediumThermalConductivityWmK",
+                    "mediumThermalConductivityWmK",
                 ),
                 activity_met=_profile(
-                    stage_value.get("activity_met"),
-                    f"{path}.activity_met",
-                    minimum=0.0,
-                    exclusive_minimum=True,
+                    stage_value.get("activityMet"),
+                    f"{path}.activityMet",
+                    "activityMet",
                 ),
-                posture=posture,
-                icl17=tuple(float(value) for value in icl17),
+                posture=str(posture),
+                outfit=outfit,
+                icl17=_outfit_to_icl17(outfit, path),
             )
         )
 
-    options_value = scenario.get("options", {})
-    options = _require_mapping(options_value, "options")
-    threshold = _number(
-        options.get(
-            "shivering_suppression_threshold_w",
-            DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
-        ),
-        "options.shivering_suppression_threshold_w",
-        minimum=0.0,
-        exclusive_minimum=True,
-    )
     return ScenarioConfig(
+        name=scenario_name,
         subject=subject,
         stages=tuple(stages),
-        shivering_suppression_threshold_w=threshold,
+        shivering_suppression_threshold_w=DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
     )
 
 
@@ -700,113 +763,50 @@ def _average(values: Sequence[float]) -> float:
 def _canonical_scenario(config: ScenarioConfig) -> Dict[str, Any]:
     return {
         "schemaVersion": SCENARIO_SCHEMA_VERSION,
+        "name": config.name,
         "subject": {
             "sex": config.subject.sex,
-            "height_cm": config.subject.height_cm,
-            "weight_kg": config.subject.weight_kg,
-            "age_years": config.subject.age_years,
-            "base_core_temp_c": config.subject.base_core_temp_c,
+            "heightCm": config.subject.height_cm,
+            "weightKg": config.subject.weight_kg,
+            "ageYears": config.subject.age_years,
+            "referenceCoreTempC": config.subject.base_core_temp_c,
         },
         "stages": [
             {
                 "id": stage.id,
                 "name": stage.name,
-                "duration_min": stage.duration_min,
+                "durationMin": stage.duration_min,
                 "environment": {
-                    "air_temp_c": stage.air_temp_c.to_json(),
-                    "wind_speed_ms": stage.wind_speed_ms.to_json(),
-                    "rh_percent": stage.rh_percent.to_json(),
-                    "solar_radiation_wm2": stage.solar_radiation_wm2.to_json(),
-                    "medium_thermal_conductivity_w_mk": (
+                    "airTempC": stage.air_temp_c.to_json(),
+                    "windSpeedMs": stage.wind_speed_ms.to_json(),
+                    "relativeHumidityPercent": stage.rh_percent.to_json(),
+                    "solarRadiationWm2": stage.solar_radiation_wm2.to_json(),
+                    "mediumThermalConductivityWmK": (
                         stage.medium_thermal_conductivity_w_mk.to_json()
                     ),
                 },
-                "activity_met": stage.activity_met.to_json(),
+                "activityMet": stage.activity_met.to_json(),
                 "posture": stage.posture,
-                "icl17": list(stage.icl17),
+                "outfit": [
+                    {
+                        "id": garment.id,
+                        "instanceId": garment.instance_id,
+                        "nameZh": garment.name_zh,
+                        "nameEn": garment.name_en,
+                        "category": garment.category,
+                        "modifier": garment.modifier,
+                        "segmentClo": dict(garment.segment_clo),
+                    }
+                    for garment in stage.outfit
+                ],
             }
             for stage in config.stages
         ],
-        "options": {
-            "shivering_suppression_threshold_w": (
-                config.shivering_suppression_threshold_w
-            ),
-        },
     }
 
 
-def _legacy_payload_to_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
-    duration_min = max(0, min(int(payload["duration_min"]), MAX_SCENARIO_DURATION_MIN))
-    sex_value = payload.get("sex") or payload.get("gender") or "female"
-    sex = "female" if str(sex_value).lower().startswith("f") else "male"
-    posture = payload.get("posture") or "standing"
-    if posture not in {"standing", "sitting", "lying"}:
-        posture = "standing"
-
-    medium_value = payload.get(
-        "medium_thermal_conductivity_w_mk",
-        payload.get("medium_k_w_mk", AIR_THERMAL_CONDUCTIVITY_W_MK),
-    )
-    try:
-        medium_k_w_mk = float(medium_value)
-    except (TypeError, ValueError):
-        medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
-    if not math.isfinite(medium_k_w_mk) or medium_k_w_mk <= 0.0:
-        medium_k_w_mk = AIR_THERMAL_CONDUCTIVITY_W_MK
-
-    threshold_value = payload.get(
-        "shivering_suppression_threshold_w",
-        DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
-    )
-    try:
-        threshold_w = float(threshold_value)
-    except (TypeError, ValueError):
-        threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
-    if not math.isfinite(threshold_w) or threshold_w <= 0.0:
-        threshold_w = DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W
-
-    return {
-        "schemaVersion": SCENARIO_SCHEMA_VERSION,
-        "subject": {
-            "sex": sex,
-            "height_cm": float(payload["height_cm"]),
-            "weight_kg": float(payload["weight_kg"]),
-            "age_years": int(payload["age_years"]),
-            "base_core_temp_c": float(payload.get("base_core_temp_c", 36.6)),
-        },
-        "stages": [
-            {
-                "id": "stage-1",
-                "name": "Stage 1",
-                "duration_min": duration_min,
-                "environment": {
-                    "air_temp_c": float(payload["air_temp_c"]),
-                    "wind_speed_ms": float(payload["wind_speed_ms"]),
-                    "rh_percent": float(payload["rh_percent"]),
-                    "solar_radiation_wm2": float(
-                        payload.get(
-                            "solar_radiation_wm2",
-                            payload.get("solar_wm2", 0.0),
-                        )
-                        or 0.0
-                    ),
-                    "medium_thermal_conductivity_w_mk": medium_k_w_mk,
-                },
-                "activity_met": float(
-                    payload.get("activity_met", payload.get("met", 1.2))
-                ),
-                "posture": posture,
-                "icl17": _parse_icl17(payload).tolist(),
-            }
-        ],
-        "options": {
-            "shivering_suppression_threshold_w": threshold_w,
-        },
-    }
-
-
-def simulate_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
-    config = _normalize_scenario(payload)
+def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
+    config = _normalize_scenario(scenario)
     subject = config.subject
     bsa = _bsa_m2(subject.height_cm, subject.weight_kg)
     fat_pct = _body_fat_percent(
@@ -996,9 +996,9 @@ def simulate_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
         "heatLossResp": float(res_w[-1]) if res_w else 0.0,
         "heatLossDry": float(dry_loss_w[-1]) if dry_loss_w else 0.0,
         "sweatingHeatLoss": float(sweat_loss_w[-1]) if sweat_loss_w else 0.0,
-        "skinLatentHeatLoss": float(skin_latent_loss_w[-1])
-        if skin_latent_loss_w
-        else 0.0,
+        "skinLatentHeatLoss": (
+            float(skin_latent_loss_w[-1]) if skin_latent_loss_w else 0.0
+        ),
         "netHeatRateWatts": float(net_rate_w[-1]) if net_rate_w else 0.0,
         "shiveringIntensity": float(shiver_intensity[-1]) if shiver_intensity else 0.0,
         "sweatingIntensity": float(sweat_intensity[-1]) if sweat_intensity else 0.0,
@@ -1169,15 +1169,9 @@ def simulate_scenario(payload: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def simulate_jos3(payload: Mapping[str, Any]) -> Dict[str, Any]:
-    """Run one legacy static stage through the versioned scenario engine."""
-    return simulate_scenario(_legacy_payload_to_scenario(payload))
-
-
 __all__ = [
     "MAX_SCENARIO_DURATION_MIN",
     "SCENARIO_SCHEMA_VERSION",
-    "simulate_jos3",
     "simulate_scenario",
     "_json_sanitize",
     "jos3",

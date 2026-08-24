@@ -5,27 +5,20 @@ import {
   type ClothingSegment,
   type GarmentInstance,
 } from "./types";
+import scenarioContract from "../../scenario-contract.json";
 
-export const ISO_9920_INTERCEPT_CLO = 0.161;
-export const ISO_9920_GARMENT_SUM_FACTOR = 0.835;
+const insulationContract = scenarioContract.clothingInsulation;
+
+export const ISO_9920_INTERCEPT_CLO = insulationContract.iso9920InterceptClo;
+export const ISO_9920_GARMENT_SUM_FACTOR = insulationContract.iso9920GarmentSumFactor;
 
 /**
  * Normalized body surface fractions used by the original calculator.
  * Bilateral JOS-3 regions are combined into one clothing region.
  */
-export const CLOTHING_SEGMENT_AREA_FRACTIONS: Readonly<Record<ClothingSegment, number>> = {
-  Head: 0.055,
-  Neck: 0.015,
-  Chest: 0.12,
-  Back: 0.12,
-  Pelvis: 0.11,
-  Shoulder: 0.04,
-  Arm: 0.1,
-  Hand: 0.05,
-  Thigh: 0.18,
-  Leg: 0.14,
-  Foot: 0.07,
-};
+export const CLOTHING_SEGMENT_AREA_FRACTIONS = Object.freeze(
+  insulationContract.segmentAreaFractions,
+) satisfies Readonly<Record<ClothingSegment, number>>;
 
 export type RegionalClo = Record<ClothingSegment, number>;
 
@@ -35,25 +28,9 @@ export interface ClothingInsulation {
   regionalClo: RegionalClo;
 }
 
-const BODY_TO_CLOTHING_SEGMENT: Readonly<Record<BodySegment, ClothingSegment>> = {
-  Head: "Head",
-  Neck: "Neck",
-  Chest: "Chest",
-  Back: "Back",
-  Pelvis: "Pelvis",
-  LShoulder: "Shoulder",
-  LArm: "Arm",
-  LHand: "Hand",
-  RShoulder: "Shoulder",
-  RArm: "Arm",
-  RHand: "Hand",
-  LThigh: "Thigh",
-  LLeg: "Leg",
-  LFoot: "Foot",
-  RThigh: "Thigh",
-  RLeg: "Leg",
-  RFoot: "Foot",
-};
+const BODY_TO_CLOTHING_SEGMENT = insulationContract.bodyToClothingSegment as Readonly<
+  Record<BodySegment, ClothingSegment>
+>;
 
 function emptyRegionalClo(): RegionalClo {
   return Object.fromEntries(CLOTHING_SEGMENTS.map((segment) => [segment, 0])) as RegionalClo;

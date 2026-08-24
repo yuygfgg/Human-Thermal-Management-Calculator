@@ -1,50 +1,60 @@
 import copy
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import simulation_core
-from simulation_core import (
-    MAX_SCENARIO_DURATION_MIN,
-    simulate_jos3,
-    simulate_scenario,
-)
+from simulation_core import MAX_SCENARIO_DURATION_MIN, simulate_scenario
 
 
-def make_legacy_payload(duration_min=4):
+def profile(value):
+    return {"start": value, "end": value}
+
+
+def make_garment(
+    garment_id="garment-1",
+    instance_id="garment-instance-1",
+    segment_clo=None,
+    modifier=1.0,
+):
     return {
-        "sex": "female",
-        "height_cm": 165,
-        "weight_kg": 50,
-        "age_years": 17,
-        "base_core_temp_c": 36.6,
-        "air_temp_c": 5,
-        "wind_speed_ms": 15 / 3.6,
-        "rh_percent": 50,
-        "medium_thermal_conductivity_w_mk": 0.026,
-        "solar_radiation_wm2": 400,
-        "activity_met": 2.6,
-        "duration_min": duration_min,
-        "posture": "standing",
-        "icl17": [0.0] * 17,
+        "id": garment_id,
+        "instanceId": instance_id,
+        "nameZh": "Garment",
+        "nameEn": "Garment",
+        "category": "base",
+        "modifier": modifier,
+        "segmentClo": segment_clo or {},
     }
+
+
+def make_uniform_outfit(clo):
+    return [
+        make_garment(
+            segment_clo={
+                segment: clo
+                for segment in simulation_core.SCENARIO_CONTRACT["clothingSegments"]
+            }
+        )
+    ]
 
 
 def make_stage(stage_id="stage-1", duration_min=4, **overrides):
     stage = {
         "id": stage_id,
         "name": f"Stage {stage_id}",
-        "duration_min": duration_min,
+        "durationMin": duration_min,
         "environment": {
-            "air_temp_c": 5,
-            "wind_speed_ms": 15 / 3.6,
-            "rh_percent": 50,
-            "medium_thermal_conductivity_w_mk": 0.026,
-            "solar_radiation_wm2": 400,
+            "airTempC": profile(5),
+            "windSpeedMs": profile(15 / 3.6),
+            "relativeHumidityPercent": profile(50),
+            "mediumThermalConductivityWmK": profile(0.026),
+            "solarRadiationWm2": profile(400),
         },
-        "activity_met": 2.6,
+        "activityMet": profile(2.6),
         "posture": "standing",
-        "icl17": [0.0] * 17,
+        "outfit": [],
     }
     stage.update(overrides)
     return stage
@@ -53,56 +63,29 @@ def make_stage(stage_id="stage-1", duration_min=4, **overrides):
 def make_scenario(stages=None):
     return {
         "schemaVersion": 1,
+        "name": "Test scenario",
         "subject": {
             "sex": "female",
-            "height_cm": 165,
-            "weight_kg": 50,
-            "age_years": 17,
-            "base_core_temp_c": 36.6,
+            "heightCm": 165,
+            "weightKg": 50,
+            "ageYears": 17,
+            "referenceCoreTempC": 36.6,
         },
         "stages": stages if stages is not None else [make_stage()],
     }
 
 
-class LegacySimulationTests(unittest.TestCase):
-    def test_zero_duration_returns_initial_history_row(self):
-        result = simulate_jos3(make_legacy_payload(0))
-
-        self.assertEqual(result["dataHistory"]["time"], [0.0])
-        self.assertEqual(len(result["dataHistory"]["coreTemp"]), 1)
-        self.assertIsNone(result["stageRanges"][0]["resultStartIndex"])
-        json.dumps(result, allow_nan=False)
-
-    def test_legacy_payload_matches_an_equivalent_single_stage(self):
-        legacy_result = simulate_jos3(make_legacy_payload(3))
-        scenario_result = simulate_scenario(make_scenario([make_stage(duration_min=3)]))
-
-        for key in (
-            "coreTemp",
-            "skinTemp",
-            "netRate",
-            "shiveringIntensity",
-            "sweatingIntensity",
-        ):
-            self.assertEqual(
-                legacy_result["dataHistory"][key],
-                scenario_result["dataHistory"][key],
-            )
-        self.assertEqual(
-            legacy_result["regionalMetrics"],
-            scenario_result["regionalMetrics"],
-        )
-
-    def test_legacy_duration_is_clamped_to_24_hours(self):
-        result = simulate_jos3(make_legacy_payload(10_000))
-
-        self.assertEqual(
-            len(result["dataHistory"]["time"]),
-            MAX_SCENARIO_DURATION_MIN + 1,
-        )
-
-
 class ScenarioSimulationTests(unittest.TestCase):
+    def test_exported_scenario_json_is_the_simulation_input(self):
+        fixture_path = Path(__file__).parent / "fixtures" / "exported-scenario-v1.json"
+        with fixture_path.open(encoding="utf-8") as file:
+            scenario = json.load(file)
+
+        result = simulate_scenario(scenario)
+
+        self.assertEqual(result["scenario"], scenario)
+        self.assertEqual(result["dataHistory"]["time"], [0.0, 1.0])
+
     def test_result_contains_aligned_global_and_regional_histories(self):
         result = simulate_scenario(make_scenario([make_stage(duration_min=3)]))
         history = result["dataHistory"]
@@ -159,19 +142,19 @@ class ScenarioSimulationTests(unittest.TestCase):
 
     def test_stage_transition_uses_one_model_and_preserves_boundary_state(self):
         warm_environment = {
-            "air_temp_c": 30,
-            "wind_speed_ms": 0.1,
-            "rh_percent": 60,
-            "solar_radiation_wm2": 0,
-            "medium_thermal_conductivity_w_mk": 0.026,
+            "airTempC": profile(30),
+            "windSpeedMs": profile(0.1),
+            "relativeHumidityPercent": profile(60),
+            "solarRadiationWm2": profile(0),
+            "mediumThermalConductivityWmK": profile(0.026),
         }
         second = make_stage(
             "warm",
             duration_min=2,
             environment=warm_environment,
-            activity_met=1.1,
+            activityMet=profile(1.1),
             posture="sitting",
-            icl17=[0.8] * 17,
+            outfit=make_uniform_outfit(0.8),
         )
         original_constructor = simulation_core.jos3.JOS3
         with patch.object(
@@ -183,6 +166,7 @@ class ScenarioSimulationTests(unittest.TestCase):
                 make_scenario([make_stage("cold", duration_min=2), second])
             )
 
+        expected_clo = 0.161 + (0.835 * 0.8)
         self.assertEqual(constructor.call_count, 1)
         self.assertEqual(result["dataHistory"]["time"], [0, 1, 2, 3, 4])
         self.assertEqual(result["stageRanges"][0]["resultEndIndex"], 2)
@@ -192,7 +176,8 @@ class ScenarioSimulationTests(unittest.TestCase):
             ["cold", "cold", "cold", "warm", "warm"],
         )
         self.assertEqual(result["regionalMetrics"]["Icl"][2], [0.0] * 17)
-        self.assertEqual(result["regionalMetrics"]["Icl"][3], [0.8] * 17)
+        for value in result["regionalMetrics"]["Icl"][3]:
+            self.assertAlmostEqual(value, expected_clo)
         self.assertNotEqual(
             result["regionalMetrics"]["Tsk"][2],
             result["regionalMetrics"]["Tsk"][0],
@@ -202,16 +187,16 @@ class ScenarioSimulationTests(unittest.TestCase):
         stage = make_stage(
             duration_min=3,
             environment={
-                "air_temp_c": {"start": 5, "end": 11},
-                "wind_speed_ms": {"start": 0.2, "end": 0.8},
-                "rh_percent": {"start": 40, "end": 70},
-                "solar_radiation_wm2": {"start": 0, "end": 300},
-                "medium_thermal_conductivity_w_mk": {
+                "airTempC": {"start": 5, "end": 11},
+                "windSpeedMs": {"start": 0.2, "end": 0.8},
+                "relativeHumidityPercent": {"start": 40, "end": 70},
+                "solarRadiationWm2": {"start": 0, "end": 300},
+                "mediumThermalConductivityWmK": {
                     "start": 0.026,
                     "end": 0.052,
                 },
             },
-            activity_met={"start": 1.0, "end": 2.0},
+            activityMet={"start": 1.0, "end": 2.0},
         )
 
         history = simulate_scenario(make_scenario([stage]))["dataHistory"]
@@ -287,6 +272,15 @@ class ScenarioValidationTests(unittest.TestCase):
 
         self.assert_invalid(scenario, "must not exceed 1440 minutes")
 
+    def test_exact_duration_boundary_is_accepted(self):
+        scenario = make_scenario([make_stage(duration_min=MAX_SCENARIO_DURATION_MIN)])
+
+        result = simulate_scenario(scenario)
+
+        self.assertEqual(
+            len(result["dataHistory"]["time"]), MAX_SCENARIO_DURATION_MIN + 1
+        )
+
     def test_schema_rejects_invalid_structure_and_values(self):
         cases = []
 
@@ -301,28 +295,46 @@ class ScenarioValidationTests(unittest.TestCase):
         cases.append((duplicate_ids, "id must be unique"))
 
         incomplete_profile = make_scenario()
-        incomplete_profile["stages"][0]["environment"]["air_temp_c"] = {"start": 5}
+        incomplete_profile["stages"][0]["environment"]["airTempC"] = {"start": 5}
         cases.append((incomplete_profile, "profile must contain start and end"))
 
-        bad_icl = make_scenario()
-        bad_icl["stages"][0]["icl17"] = [0.0] * 16
-        cases.append((bad_icl, "icl17 must be a 17-length array"))
+        invalid_outfit = make_scenario()
+        invalid_outfit["stages"][0]["outfit"] = [
+            make_garment(segment_clo={"Unknown": 0.5})
+        ]
+        cases.append((invalid_outfit, "unknown clothing segment"))
 
         bad_posture = make_scenario()
         bad_posture["stages"][0]["posture"] = "crouching"
         cases.append((bad_posture, "posture must be"))
 
         non_integer_duration = make_scenario()
-        non_integer_duration["stages"][0]["duration_min"] = 3.5
-        cases.append((non_integer_duration, "duration_min must be an integer"))
+        non_integer_duration["stages"][0]["durationMin"] = 3.5
+        cases.append((non_integer_duration, "durationMin must be an integer"))
 
         non_finite_number = make_scenario()
-        non_finite_number["stages"][0]["activity_met"] = float("nan")
-        cases.append((non_finite_number, "activity_met.start must be a finite number"))
+        non_finite_number["stages"][0]["activityMet"]["start"] = float("nan")
+        cases.append((non_finite_number, "activityMet.start must be a finite number"))
+
+        out_of_range_subject = make_scenario()
+        out_of_range_subject["subject"]["heightCm"] = 99
+        cases.append((out_of_range_subject, "heightCm must be at least 100"))
 
         for scenario, message in cases:
             with self.subTest(message=message):
                 self.assert_invalid(copy.deepcopy(scenario), message)
+
+    def test_removed_snake_case_protocol_is_rejected(self):
+        old_protocol = make_scenario()
+        old_protocol["subject"] = {
+            "sex": "female",
+            "height_cm": 165,
+            "weight_kg": 50,
+            "age_years": 17,
+            "base_core_temp_c": 36.6,
+        }
+
+        self.assert_invalid(old_protocol, "subject.heightCm must be a finite number")
 
 
 if __name__ == "__main__":

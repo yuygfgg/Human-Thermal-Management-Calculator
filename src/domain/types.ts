@@ -1,40 +1,44 @@
-export const BODY_SEGMENTS = [
-  "Head",
-  "Neck",
-  "Chest",
-  "Back",
-  "Pelvis",
-  "LShoulder",
-  "LArm",
-  "LHand",
-  "RShoulder",
-  "RArm",
-  "RHand",
-  "LThigh",
-  "LLeg",
-  "LFoot",
-  "RThigh",
-  "RLeg",
-  "RFoot",
-] as const;
+import scenarioContract from "../../scenario-contract.json";
 
-export type BodySegment = (typeof BODY_SEGMENTS)[number];
+export type BodySegment =
+  | "Head"
+  | "Neck"
+  | "Chest"
+  | "Back"
+  | "Pelvis"
+  | "LShoulder"
+  | "LArm"
+  | "LHand"
+  | "RShoulder"
+  | "RArm"
+  | "RHand"
+  | "LThigh"
+  | "LLeg"
+  | "LFoot"
+  | "RThigh"
+  | "RLeg"
+  | "RFoot";
 
-export const CLOTHING_SEGMENTS = [
-  "Head",
-  "Neck",
-  "Chest",
-  "Back",
-  "Pelvis",
-  "Shoulder",
-  "Arm",
-  "Hand",
-  "Thigh",
-  "Leg",
-  "Foot",
-] as const;
+export type ClothingSegment =
+  | "Head"
+  | "Neck"
+  | "Chest"
+  | "Back"
+  | "Pelvis"
+  | "Shoulder"
+  | "Arm"
+  | "Hand"
+  | "Thigh"
+  | "Leg"
+  | "Foot";
 
-export type ClothingSegment = (typeof CLOTHING_SEGMENTS)[number];
+export const BODY_SEGMENTS = Object.freeze(
+  scenarioContract.bodySegments,
+) as readonly BodySegment[];
+
+export const CLOTHING_SEGMENTS = Object.freeze(
+  scenarioContract.clothingSegments,
+) as readonly ClothingSegment[];
 export type Language = "zh" | "en";
 export type Theme = "light" | "dark";
 export type Posture = "standing" | "sitting" | "lying";

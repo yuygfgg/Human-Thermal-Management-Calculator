@@ -52,6 +52,24 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+## Scenario protocol
+
+The version 1 scenario JSON exported by the workbench is the only public
+simulation input format. The browser worker and native Python code accept the
+same document. Shared limits, segment mappings, and clothing insulation
+constants are defined in `scenario-contract.json`.
+
+Run an exported scenario with Python:
+
+```python
+import json
+
+from simulation_core import simulate_scenario
+
+with open("scenario.json", encoding="utf-8") as file:
+    result = simulate_scenario(json.load(file))
+```
+
 ## Tests
 
 Run the TypeScript check:

@@ -1,5 +1,5 @@
 import { calculateClothingInsulation, regionalCloToIcl17 } from "./clothing";
-import { MAX_SCENARIO_DURATION_MIN } from "./constants";
+import scenarioContract from "../../scenario-contract.json";
 import {
   BODY_SEGMENTS,
   CLOTHING_SEGMENTS,
@@ -17,62 +17,16 @@ interface NumericRange {
   exclusiveMinimum?: boolean;
 }
 
-export const SCENARIO_LIMITS = Object.freeze({
-  heightCm: { minimum: 100, maximum: 250 },
-  weightKg: { minimum: 20, maximum: 350 },
-  ageYears: { minimum: 1, maximum: 120, integer: true },
-  referenceCoreTempC: { minimum: 30, maximum: 42 },
-  durationMin: { minimum: 1, maximum: MAX_SCENARIO_DURATION_MIN, integer: true },
-  airTempC: { minimum: -60, maximum: 80 },
-  windSpeedMs: { minimum: 0, maximum: 60 },
-  relativeHumidityPercent: { minimum: 0, maximum: 100 },
-  solarRadiationWm2: { minimum: 0, maximum: 2000 },
-  mediumThermalConductivityWmK: {
-    minimum: 0,
-    maximum: 500,
-    exclusiveMinimum: true,
-  },
-  activityMet: { minimum: 0.8, maximum: 12 },
-  garmentModifier: { minimum: 0, maximum: 3, exclusiveMinimum: true },
-  clothingClo: { minimum: 0, maximum: 10 },
-}) satisfies Record<string, NumericRange>;
+export const SCENARIO_LIMITS = Object.freeze(
+  scenarioContract.limits satisfies Record<string, NumericRange>,
+);
+export const MAX_SCENARIO_DURATION_MIN = SCENARIO_LIMITS.durationMin.maximum;
 
-const CLOTHING_CATEGORIES = new Set<ClothingCategory>([
-  "base",
-  "mid",
-  "outer",
-  "bottoms",
-  "full",
-  "accessories",
-]);
+const CLOTHING_CATEGORIES = new Set<ClothingCategory>(
+  scenarioContract.clothingCategories as ClothingCategory[],
+);
 const CLOTHING_SEGMENT_SET = new Set<string>(CLOTHING_SEGMENTS);
-const POSTURES = new Set(["standing", "sitting", "lying"]);
-
-export interface SimulationPayload {
-  schemaVersion: 1;
-  subject: {
-    sex: "male" | "female";
-    height_cm: number;
-    weight_kg: number;
-    age_years: number;
-    base_core_temp_c: number;
-  };
-  stages: Array<{
-    id: string;
-    name: string;
-    duration_min: number;
-    environment: {
-      air_temp_c: ScalarProfile;
-      wind_speed_ms: ScalarProfile;
-      rh_percent: ScalarProfile;
-      solar_radiation_wm2: ScalarProfile;
-      medium_thermal_conductivity_w_mk: ScalarProfile;
-    };
-    activity_met: ScalarProfile;
-    posture: "standing" | "sitting" | "lying";
-    icl17: number[];
-  }>;
-}
+const POSTURES = new Set<string>(scenarioContract.postures);
 
 export class ScenarioValidationError extends Error {
   readonly issues: ScenarioValidationIssue[];
@@ -416,41 +370,4 @@ export function assertValidScenario(
   if (issues.length > 0) {
     throw new ScenarioValidationError(issues);
   }
-}
-
-function copyProfile(profile: ScalarProfile): ScalarProfile {
-  return { start: profile.start, end: profile.end };
-}
-
-/** Convert UI domain data to the versioned snake_case simulation protocol. */
-export function toSimulationPayload(scenario: SimulationScenario): SimulationPayload {
-  assertValidScenario(scenario);
-
-  return {
-    schemaVersion: 1,
-    subject: {
-      sex: scenario.subject.sex,
-      height_cm: scenario.subject.heightCm,
-      weight_kg: scenario.subject.weightKg,
-      age_years: scenario.subject.ageYears,
-      base_core_temp_c: scenario.subject.referenceCoreTempC,
-    },
-    stages: scenario.stages.map((stage) => ({
-      id: stage.id,
-      name: stage.name,
-      duration_min: stage.durationMin,
-      environment: {
-        air_temp_c: copyProfile(stage.environment.airTempC),
-        wind_speed_ms: copyProfile(stage.environment.windSpeedMs),
-        rh_percent: copyProfile(stage.environment.relativeHumidityPercent),
-        solar_radiation_wm2: copyProfile(stage.environment.solarRadiationWm2),
-        medium_thermal_conductivity_w_mk: copyProfile(
-          stage.environment.mediumThermalConductivityWmK,
-        ),
-      },
-      activity_met: copyProfile(stage.activityMet),
-      posture: stage.posture,
-      icl17: regionalCloToIcl17(calculateClothingInsulation(stage.outfit).regionalClo),
-    })),
-  };
 }

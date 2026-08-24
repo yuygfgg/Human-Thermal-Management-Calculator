@@ -1,5 +1,4 @@
-import type { SimulationPayload } from "../domain/scenario";
-import type { SimulationResult } from "../domain/types";
+import type { SimulationResult, SimulationScenario } from "../domain/types";
 
 export type SimulationEngineStatus =
   | "idle"
@@ -41,7 +40,7 @@ export class SimulationClient {
     worker.postMessage({ type: "warmup" });
   }
 
-  run(payload: SimulationPayload): Promise<SimulationResult> {
+  run(scenario: SimulationScenario): Promise<SimulationResult> {
     if (this.pending) {
       this.cancel();
     }
@@ -52,7 +51,7 @@ export class SimulationClient {
 
     return new Promise<SimulationResult>((resolve, reject) => {
       this.pending = { id, resolve, reject };
-      worker.postMessage({ type: "simulate", id, payload });
+      worker.postMessage({ type: "simulate", id, scenario });
     });
   }
 

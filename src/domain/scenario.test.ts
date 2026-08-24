@@ -4,7 +4,6 @@ import type { GarmentInstance, SimulationScenario } from "./types";
 import {
   ScenarioValidationError,
   assertValidScenario,
-  toSimulationPayload,
   validateScenario,
 } from "./scenario";
 
@@ -115,39 +114,5 @@ describe("validateScenario", () => {
     } catch (error) {
       expect((error as ScenarioValidationError).issues[0].path).toBe("stages[0].durationMin");
     }
-  });
-});
-
-describe("toSimulationPayload", () => {
-  it("creates the confirmed backend protocol without UI-only fields", () => {
-    const payload = toSimulationPayload(scenario());
-
-    expect(payload).toMatchObject({
-      schemaVersion: 1,
-      subject: {
-        sex: "female",
-        height_cm: 165,
-        weight_kg: 55,
-        age_years: 30,
-        base_core_temp_c: 36.6,
-      },
-      stages: [{
-        id: "indoors",
-        name: "Indoors",
-        duration_min: 30,
-        environment: {
-          air_temp_c: { start: 22, end: 22 },
-          wind_speed_ms: { start: 0.1, end: 0.1 },
-          rh_percent: { start: 50, end: 50 },
-          solar_radiation_wm2: { start: 0, end: 0 },
-          medium_thermal_conductivity_w_mk: { start: 0.026, end: 0.026 },
-        },
-        activity_met: { start: 1.2, end: 1.2 },
-        posture: "sitting",
-      }],
-    });
-    expect(payload.stages[0].icl17).toHaveLength(17);
-    expect(payload).not.toHaveProperty("name");
-    expect(payload.stages[0]).not.toHaveProperty("outfit");
   });
 });

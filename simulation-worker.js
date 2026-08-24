@@ -13,6 +13,7 @@ function simulationAssetUrl(path) {
 }
 
 const CORE_URL = simulationAssetUrl("simulation_core.py");
+const CONTRACT_URL = simulationAssetUrl("scenario-contract.json");
 const JOS3_WHEEL_URL = simulationAssetUrl("vendor/jos3-0.5.0-py3-none-any.whl");
 
 let pyodidePromise;
@@ -35,13 +36,19 @@ async function getPyodide() {
             const runtime = await loadPyodide({ indexURL: PYODIDE_BASE_URL });
             await runtime.loadPackage(["numpy", "micropip"]);
 
-            const coreSource = await fetch(CORE_URL).then(response => {
+            const fetchAsset = async (url, name) => {
+                const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error(`Could not load simulation core (${response.status})`);
+                    throw new Error(`Could not load ${name} (${response.status})`);
                 }
                 return response.text();
-            });
+            };
+            const [coreSource, contractSource] = await Promise.all([
+                fetchAsset(CORE_URL, "simulation core"),
+                fetchAsset(CONTRACT_URL, "scenario contract"),
+            ]);
             runtime.FS.writeFile("/home/pyodide/simulation_core.py", coreSource);
+            runtime.FS.writeFile("/home/pyodide/scenario-contract.json", contractSource);
             runtime.globals.set("htm_jos3_wheel_url", JOS3_WHEEL_URL);
             await runtime.runPythonAsync(`
 import micropip
@@ -50,7 +57,7 @@ await micropip.install(htm_jos3_wheel_url)
             await runtime.runPythonAsync(`
 import sys
 sys.path.insert(0, "/home/pyodide")
-from simulation_core import _json_sanitize, simulate_jos3, simulate_scenario
+from simulation_core import _json_sanitize, simulate_scenario
 `);
             postEngineStatus("ready");
             return runtime;
@@ -64,18 +71,18 @@ from simulation_core import _json_sanitize, simulate_jos3, simulate_scenario
     return pyodidePromise;
 }
 
-async function runRequest(requestId, payload) {
+async function runRequest(requestId, scenario) {
     if (requestId !== latestRequestId) return;
 
     const runtime = await getPyodide();
     if (requestId !== latestRequestId) return;
 
     postRequestStatus(requestId, "running");
-    runtime.globals.set("htm_payload_json", JSON.stringify(payload));
+    runtime.globals.set("htm_scenario_json", JSON.stringify(scenario));
     const resultProxy = await runtime.runPythonAsync(`
 import json
-payload = json.loads(htm_payload_json)
-result = simulate_scenario(payload) if payload.get("schemaVersion") == 1 else simulate_jos3(payload)
+scenario = json.loads(htm_scenario_json)
+result = simulate_scenario(scenario)
 json.dumps(_json_sanitize(result), ensure_ascii=False, separators=(",", ":"))
 `);
     const resultJson = resultProxy && typeof resultProxy.toJs === "function"
@@ -100,7 +107,7 @@ self.onmessage = event => {
     const requestId = Number(message.id);
     latestRequestId = requestId;
     queuedWork = queuedWork
-        .then(() => runRequest(requestId, message.payload))
+        .then(() => runRequest(requestId, message.scenario))
         .catch(error => {
             if (requestId === latestRequestId) {
                 self.postMessage({

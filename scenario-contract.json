@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "bodySegments": [
+    "Head",
+    "Neck",
+    "Chest",
+    "Back",
+    "Pelvis",
+    "LShoulder",
+    "LArm",
+    "LHand",
+    "RShoulder",
+    "RArm",
+    "RHand",
+    "LThigh",
+    "LLeg",
+    "LFoot",
+    "RThigh",
+    "RLeg",
+    "RFoot"
+  ],
+  "clothingSegments": [
+    "Head",
+    "Neck",
+    "Chest",
+    "Back",
+    "Pelvis",
+    "Shoulder",
+    "Arm",
+    "Hand",
+    "Thigh",
+    "Leg",
+    "Foot"
+  ],
+  "clothingCategories": [
+    "base",
+    "mid",
+    "outer",
+    "bottoms",
+    "full",
+    "accessories"
+  ],
+  "postures": ["standing", "sitting", "lying"],
+  "limits": {
+    "heightCm": { "minimum": 100, "maximum": 250 },
+    "weightKg": { "minimum": 20, "maximum": 350 },
+    "ageYears": { "minimum": 1, "maximum": 120, "integer": true },
+    "referenceCoreTempC": { "minimum": 30, "maximum": 42 },
+    "durationMin": { "minimum": 1, "maximum": 1440, "integer": true },
+    "airTempC": { "minimum": -60, "maximum": 80 },
+    "windSpeedMs": { "minimum": 0, "maximum": 60 },
+    "relativeHumidityPercent": { "minimum": 0, "maximum": 100 },
+    "solarRadiationWm2": { "minimum": 0, "maximum": 2000 },
+    "mediumThermalConductivityWmK": {
+      "minimum": 0,
+      "maximum": 500,
+      "exclusiveMinimum": true
+    },
+    "activityMet": { "minimum": 0.8, "maximum": 12 },
+    "garmentModifier": {
+      "minimum": 0,
+      "maximum": 3,
+      "exclusiveMinimum": true
+    },
+    "clothingClo": { "minimum": 0, "maximum": 10 }
+  },
+  "clothingInsulation": {
+    "iso9920InterceptClo": 0.161,
+    "iso9920GarmentSumFactor": 0.835,
+    "segmentAreaFractions": {
+      "Head": 0.055,
+      "Neck": 0.015,
+      "Chest": 0.12,
+      "Back": 0.12,
+      "Pelvis": 0.11,
+      "Shoulder": 0.04,
+      "Arm": 0.1,
+      "Hand": 0.05,
+      "Thigh": 0.18,
+      "Leg": 0.14,
+      "Foot": 0.07
+    },
+    "bodyToClothingSegment": {
+      "Head": "Head",
+      "Neck": "Neck",
+      "Chest": "Chest",
+      "Back": "Back",
+      "Pelvis": "Pelvis",
+      "LShoulder": "Shoulder",
+      "LArm": "Arm",
+      "LHand": "Hand",
+      "RShoulder": "Shoulder",
+      "RArm": "Arm",
+      "RHand": "Hand",
+      "LThigh": "Thigh",
+      "LLeg": "Leg",
+      "LFoot": "Foot",
+      "RThigh": "Thigh",
+      "RLeg": "Leg",
+      "RFoot": "Foot"
+    }
+  }
+}

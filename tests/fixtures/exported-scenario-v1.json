@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "name": "Exported scenario fixture",
+  "subject": {
+    "sex": "female",
+    "heightCm": 165,
+    "weightKg": 55,
+    "ageYears": 28,
+    "referenceCoreTempC": 36.8
+  },
+  "stages": [
+    {
+      "id": "fixture-stage",
+      "name": "Fixture stage",
+      "durationMin": 1,
+      "environment": {
+        "airTempC": { "start": 21, "end": 21 },
+        "windSpeedMs": { "start": 0.1, "end": 0.1 },
+        "relativeHumidityPercent": { "start": 50, "end": 50 },
+        "solarRadiationWm2": { "start": 0, "end": 0 },
+        "mediumThermalConductivityWmK": { "start": 0.026, "end": 0.026 }
+      },
+      "activityMet": { "start": 1.2, "end": 1.2 },
+      "posture": "sitting",
+      "outfit": [
+        {
+          "id": "base_t_shirt",
+          "instanceId": "fixture-garment",
+          "nameZh": "T-shirt",
+          "nameEn": "T-shirt",
+          "category": "base",
+          "modifier": 1,
+          "segmentClo": {
+            "Chest": 0.1,
+            "Back": 0.1,
+            "Pelvis": 0.06,
+            "Shoulder": 0.03,
+            "Arm": 0.02
+          }
+        }
+      ]
+    }
+  ]
+}

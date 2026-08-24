@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import exportedScenarioFixture from "../../tests/fixtures/exported-scenario-v1.json";
 import { BODY_SEGMENTS } from "../domain/types";
 import type { SimulationResult, SimulationScenario } from "../domain/types";
 import { ScenarioValidationError } from "../domain/scenario";
@@ -129,6 +130,12 @@ function result(): SimulationResult {
 }
 
 describe("scenario JSON", () => {
+  it("accepts the shared version 1 export fixture", () => {
+    expect(parseScenarioJson(JSON.stringify(exportedScenarioFixture))).toEqual(
+      exportedScenarioFixture,
+    );
+  });
+
   it("round-trips the new scenario format", () => {
     const original = scenario();
     const source = serializeScenarioJson(original);

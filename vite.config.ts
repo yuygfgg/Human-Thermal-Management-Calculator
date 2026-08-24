@@ -11,6 +11,7 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const SIMULATION_ASSETS = [
   "simulation-worker.js",
   "simulation_core.py",
+  "scenario-contract.json",
   "vendor/jos3-0.5.0-py3-none-any.whl",
 ] as const;
 
@@ -31,6 +32,7 @@ function copySimulationAssets(): Plugin {
       mkdirSync(resolve(output, "vendor"), { recursive: true });
       cpSync(resolve(ROOT, "simulation-worker.js"), resolve(output, "simulation-worker.js"));
       cpSync(resolve(ROOT, "simulation_core.py"), resolve(output, "simulation_core.py"));
+      cpSync(resolve(ROOT, "scenario-contract.json"), resolve(output, "scenario-contract.json"));
       cpSync(
         resolve(ROOT, "vendor/jos3-0.5.0-py3-none-any.whl"),
         resolve(output, "vendor/jos3-0.5.0-py3-none-any.whl"),

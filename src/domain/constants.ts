@@ -95,5 +95,3 @@ export const REGIONAL_METRICS: MetricDefinition[] = [
   { key: "THLsk", label: { zh: "局部皮肤散热", en: "Local skin heat loss" }, shortLabel: "THLsk", domain: [-10, 40], decimals: 1, palette: "diverging" },
   { key: "Icl", label: { zh: "局部衣着隔热", en: "Local clothing insulation" }, shortLabel: "Icl", domain: [0, 2], decimals: 2, palette: "sequential" },
 ];
-
-export const MAX_SCENARIO_DURATION_MIN = 24 * 60;
