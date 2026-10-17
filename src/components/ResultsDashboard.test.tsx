@@ -1,9 +1,19 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createSingleStageScenario } from "../data/templates";
-import { BODY_SEGMENTS, type Language, type SimulationResult } from "../domain/types";
+import {
+  BODY_SEGMENTS,
+  type Language,
+  type SimulationResult,
+} from "../domain/types";
 import { ResultsDashboard } from "./ResultsDashboard";
 
 afterEach(cleanup);
@@ -13,10 +23,10 @@ function makeResult(
   instantComfortScore?: number,
   sampleCount = 1,
 ): SimulationResult {
-  const series = (value: number) => Array.from({ length: sampleCount }, () => value);
-  const regionalMatrix = Array.from(
-    { length: sampleCount },
-    () => BODY_SEGMENTS.map(() => 35),
+  const series = (value: number) =>
+    Array.from({ length: sampleCount }, () => value);
+  const regionalMatrix = Array.from({ length: sampleCount }, () =>
+    BODY_SEGMENTS.map(() => 35),
   );
 
   return {
@@ -66,14 +76,16 @@ function makeResult(
         : { instantComfortScore: series(instantComfortScore) }),
       totalSkinLoss: series(40),
     },
-    stageRanges: [{
-      id: "stage-1",
-      name: "Stage 1",
-      startMinute: 0,
-      endMinute: Math.max(1, sampleCount - 1),
-      resultStartIndex: 0,
-      resultEndIndex: sampleCount - 1,
-    }],
+    stageRanges: [
+      {
+        id: "stage-1",
+        name: "Stage 1",
+        startMinute: 0,
+        endMinute: Math.max(1, sampleCount - 1),
+        resultStartIndex: 0,
+        resultEndIndex: sampleCount - 1,
+      },
+    ],
     stageSummaries: [],
     regionalMetrics: {
       regionIds: [...BODY_SEGMENTS],
@@ -162,6 +174,30 @@ describe("ResultsDashboard playback", () => {
     expect(screen.getByRole("button", { name: /暂停/ })).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: /暂停/ }));
+  });
+});
+
+describe("ResultsDashboard physiological response display", () => {
+  it("shows shivering heat and evaporated sweat units", () => {
+    const result = makeResult(64);
+    result.dataHistory.shiveringHeatProductionWatts = [42];
+    result.dataHistory.shiveringModelCapacityPercent = [18];
+    result.dataHistory.shiveringRmrMultiple = [0.7];
+    result.dataHistory.sweatEvaporationRateGPerH = [120];
+    result.dataHistory.cumulativeSweatEvaporatedMl = [35];
+    result.dataHistory.skinWettednessPercent = [45];
+
+    renderDashboard(result, "zh");
+
+    expect(screen.getAllByText("战栗产热").length).toBeGreaterThan(0);
+    expect(screen.getByText("42.0 W")).toBeVisible();
+    expect(screen.getByText("蒸发汗速率")).toBeVisible();
+    expect(screen.getByText("120.0 g/h")).toBeVisible();
+    expect(screen.getByText(/皮肤湿润度: 45 %/)).toBeVisible();
+    expect(screen.getByText(/累计蒸发汗液: 35 mL/)).toBeVisible();
+    expect(screen.getByText(/战栗代谢增量: 0.7 met/)).toBeVisible();
+    expect(screen.queryByText(/模型容量:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/汗量是/)).not.toBeInTheDocument();
   });
 });
 

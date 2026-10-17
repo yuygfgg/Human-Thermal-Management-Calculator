@@ -150,6 +150,12 @@ export interface DataHistory {
   totalLoss: number[];
   shiveringIntensity: number[];
   sweatingIntensity: number[];
+  shiveringHeatProductionWatts?: number[];
+  shiveringModelCapacityPercent?: number[];
+  shiveringRmrMultiple?: number[];
+  sweatEvaporationRateGPerH?: number[];
+  cumulativeSweatEvaporatedMl?: number[];
+  skinWettednessPercent?: number[];
   vasoconstrictionIntensity: number[];
   vasodilationIntensity: number[];
   comfortScore: number[];
@@ -165,6 +171,14 @@ export interface DataHistory {
   solarRadiation?: number[];
   mediumThermalConductivity?: number[];
   activityMet?: number[];
+  shiveringActivityScale?: number[];
+  shiveringSuppressionCoeff?: number[];
+  shiveringWorkWatts?: number[];
+  shiveringThresholdShiftC?: number[];
+  shiveringTemperatureScale?: number[];
+  shiveringFatigueScale?: number[];
+  shiveringFatigueLoad?: number[];
+  effectiveShiveringScale?: number[];
   icl17?: number[][];
 }
 
@@ -178,6 +192,12 @@ export interface SimulationSummaryValues {
   netHeatRateWatts: number;
   shiveringIntensity: number;
   sweatingIntensity: number;
+  shiveringHeatProductionWatts?: number;
+  shiveringModelCapacityPercent?: number;
+  shiveringRmrMultiple?: number;
+  sweatEvaporationRateGPerH?: number;
+  cumulativeSweatEvaporatedMl?: number;
+  skinWettednessPercent?: number;
   vasoconstrictionIntensity: number;
   vasodilationIntensity: number;
 }

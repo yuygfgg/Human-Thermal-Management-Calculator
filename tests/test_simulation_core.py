@@ -212,6 +212,63 @@ class ScenarioSimulationTests(unittest.TestCase):
             history["shiveringActivityScale"][-1],
         )
 
+    def test_constant_cold_shivering_does_not_chatter_at_threshold(self):
+        stage = make_stage(
+            duration_min=60,
+            environment={
+                "airTempC": profile(14),
+                "windSpeedMs": profile(1),
+                "relativeHumidityPercent": profile(50),
+                "solarRadiationWm2": profile(0),
+                "mediumThermalConductivityWmK": profile(0.026),
+            },
+        )
+
+        result = simulate_scenario(make_scenario([stage]))
+        shivering = [sum(row) for row in result["regionalMetrics"]["Mshiv"]]
+        first_active = next(
+            index for index, value in enumerate(shivering) if value > 1.0
+        )
+        active_values = shivering[first_active:]
+        upward_steps = [
+            active_values[index] - active_values[index - 1]
+            for index in range(1, len(active_values))
+        ]
+
+        self.assertTrue(all(value > 0.0 for value in active_values))
+        self.assertLess(max(upward_steps, default=0.0), 20.0)
+
+    def test_response_outputs_use_heat_and_water_units(self):
+        stage = make_stage(
+            duration_min=4,
+            environment={
+                "airTempC": profile(35),
+                "windSpeedMs": profile(0.2),
+                "relativeHumidityPercent": profile(50),
+                "solarRadiationWm2": profile(0),
+                "mediumThermalConductivityWmK": profile(0.026),
+            },
+        )
+
+        result = simulate_scenario(make_scenario([stage]))
+        history = result["dataHistory"]
+        sweat_rate = history["sweatEvaporationRateGPerH"]
+        cumulative_sweat = history["cumulativeSweatEvaporatedMl"]
+
+        self.assertEqual(len(history["shiveringHeatProductionWatts"]), 5)
+        self.assertEqual(len(history["shiveringRmrMultiple"]), 5)
+        self.assertGreater(sweat_rate[-1], 0.0)
+        self.assertTrue(
+            all(
+                cumulative_sweat[index] >= cumulative_sweat[index - 1]
+                for index in range(1, len(cumulative_sweat))
+            )
+        )
+        self.assertAlmostEqual(
+            result["finalState"]["cumulativeSweatEvaporatedMl"],
+            cumulative_sweat[-1],
+        )
+
     def test_stage_ranges_and_summaries_exclude_shared_boundary_rows(self):
         result = simulate_scenario(
             make_scenario(

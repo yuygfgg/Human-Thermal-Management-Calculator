@@ -1,3 +1,16 @@
+"""Scenario validation and clothing insulation conversion.
+
+The clothing ensemble conversion follows the ISO 9920 relationship used by
+the JOS-3 input model:
+
+ISO 9920:2007. Ergonomics of the thermal environment - Estimation of thermal
+insulation and water vapour resistance of a clothing ensemble.
+https://www.iso.org/standard/39257.html
+
+The segment area fractions and body-node aggregation define this project's
+six-region display mapping.
+"""
+
 from __future__ import annotations
 
 import json

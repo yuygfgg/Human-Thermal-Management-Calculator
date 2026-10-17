@@ -54,6 +54,12 @@ const HISTORY_UNITS: Readonly<Record<string, string>> = {
   totalLoss: "W",
   shiveringIntensity: "percent",
   sweatingIntensity: "percent",
+  shiveringHeatProductionWatts: "W",
+  shiveringModelCapacityPercent: "percent_of_model_capacity",
+  shiveringRmrMultiple: "met",
+  sweatEvaporationRateGPerH: "g/h",
+  cumulativeSweatEvaporatedMl: "mL",
+  skinWettednessPercent: "percent",
   vasoconstrictionIntensity: "percent",
   vasodilationIntensity: "percent",
   comfortScore: "score",
@@ -69,8 +75,10 @@ const HISTORY_UNITS: Readonly<Record<string, string>> = {
   shiveringActivityScale: "ratio",
   shiveringSuppressionCoeff: "ratio",
   shiveringWorkWatts: "W",
+  shiveringThresholdShiftC: "degC",
   shiveringTemperatureScale: "ratio",
   shiveringFatigueScale: "ratio",
+  shiveringFatigueLoad: "ratio",
   effectiveShiveringScale: "ratio",
 };
 

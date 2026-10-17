@@ -48,6 +48,9 @@ export interface ActivityPreset {
   label: Record<Language, string>;
 }
 
+// The met unit follows ISO 8996:2021. These labels and values are convenience
+// presets for scenario entry.
+// https://www.iso.org/standard/74443.html
 export const ACTIVITY_PRESETS: ActivityPreset[] = [
   { id: "sleeping", met: 1.0, posture: "lying", label: { zh: "睡眠", en: "Sleeping" } },
   { id: "seated", met: 1.0, posture: "sitting", label: { zh: "安静坐姿", en: "Seated, quiet" } },

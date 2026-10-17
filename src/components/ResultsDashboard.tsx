@@ -67,7 +67,13 @@ const COPY = {
     netSeries: "净变化率",
     responses: "生理反应",
     shivering: "战栗",
+    shiveringHeat: "战栗产热",
+    modelCapacity: "模型容量",
+    shiveringMetabolicIncrement: "战栗代谢增量",
     sweating: "出汗",
+    sweatRate: "蒸发汗速率",
+    cumulativeSweat: "累计蒸发汗液",
+    skinWettedness: "皮肤湿润度",
     constriction: "血管收缩",
     dilation: "血管舒张",
     stageSummary: "阶段摘要",
@@ -110,7 +116,13 @@ const COPY = {
     netSeries: "Net heat rate",
     responses: "Physiological response",
     shivering: "Shivering",
+    shiveringHeat: "Shivering heat production",
+    modelCapacity: "Model capacity",
+    shiveringMetabolicIncrement: "Shivering metabolic increment",
     sweating: "Sweating",
+    sweatRate: "Evaporated sweat rate",
+    cumulativeSweat: "Cumulative evaporated sweat",
+    skinWettedness: "Skin wettedness",
     constriction: "Vasoconstriction",
     dilation: "Vasodilation",
     stageSummary: "Stage summary",
@@ -135,7 +147,9 @@ function finiteValues(values: readonly number[]): number[] {
 
 function mean(values: readonly number[]): number {
   const finite = finiteValues(values);
-  return finite.length > 0 ? finite.reduce((sum, value) => sum + value, 0) / finite.length : Number.NaN;
+  return finite.length > 0
+    ? finite.reduce((sum, value) => sum + value, 0) / finite.length
+    : Number.NaN;
 }
 
 function counterpart(segment: BodySegment): BodySegment | null {
@@ -148,8 +162,12 @@ function counterpart(segment: BodySegment): BodySegment | null {
   return null;
 }
 
-function formatValue(value: number, decimals: number, unit: string): string {
-  if (!Number.isFinite(value)) {
+function formatValue(
+  value: number | undefined,
+  decimals: number,
+  unit: string,
+): string {
+  if (value === undefined || !Number.isFinite(value)) {
     return "—";
   }
   return `${value.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
@@ -170,18 +188,26 @@ function currentStageName(result: SimulationResult, index: number): string {
   if (historyName) {
     return historyName;
   }
-  return result.stageRanges.find((range) => (
-    index >= range.resultStartIndex && index <= range.resultEndIndex
-  ))?.name ?? result.stageRanges[0]?.name ?? "";
+  return (
+    result.stageRanges.find(
+      (range) =>
+        index >= range.resultStartIndex && index <= range.resultEndIndex,
+    )?.name ??
+    result.stageRanges[0]?.name ??
+    ""
+  );
 }
 
 function stageStartIndex(result: SimulationResult, index: number): number {
   if (index === 0) {
     return 0;
   }
-  return result.stageRanges.find((range) => (
-    index >= range.resultStartIndex && index <= range.resultEndIndex
-  ))?.resultStartIndex ?? 0;
+  return (
+    result.stageRanges.find(
+      (range) =>
+        index >= range.resultStartIndex && index <= range.resultEndIndex,
+    )?.resultStartIndex ?? 0
+  );
 }
 
 function StatusBanner({
@@ -198,10 +224,16 @@ function StatusBanner({
   const copy = COPY[language];
   const text = status === "error" && detail ? detail : copy[status];
   return (
-    <div className={`engine-status engine-status--${STATUS_CLASS[status]}`} role="status" aria-live="polite">
+    <div
+      className={`engine-status engine-status--${STATUS_CLASS[status]}`}
+      role="status"
+      aria-live="polite"
+    >
       <span className="engine-status__dot" aria-hidden="true" />
       <span>{text}</span>
-      {stale ? <span className="engine-status__stale">{copy.stale}</span> : null}
+      {stale ? (
+        <span className="engine-status__stale">{copy.stale}</span>
+      ) : null}
     </div>
   );
 }
@@ -217,17 +249,37 @@ function SummaryCards({
 }) {
   const copy = COPY[language];
   const history = result.dataHistory;
-  const instantComfort = history.instantComfortScore?.[index] ?? history.comfortScore[index];
+  const instantComfort =
+    history.instantComfortScore?.[index] ?? history.comfortScore[index];
   const cards = [
-    { label: copy.core, value: formatValue(history.coreTemp[index], 2, "°C"), tone: "core" },
-    { label: copy.skin, value: formatValue(history.skinTemp[index], 1, "°C"), tone: "skin" },
-    { label: copy.comfort, value: formatValue(instantComfort, 0, "/ 100"), tone: "comfort" },
-    { label: copy.net, value: formatValue(history.netRate[index], 1, "W"), tone: "net" },
+    {
+      label: copy.core,
+      value: formatValue(history.coreTemp[index], 2, "°C"),
+      tone: "core",
+    },
+    {
+      label: copy.skin,
+      value: formatValue(history.skinTemp[index], 1, "°C"),
+      tone: "skin",
+    },
+    {
+      label: copy.comfort,
+      value: formatValue(instantComfort, 0, "/ 100"),
+      tone: "comfort",
+    },
+    {
+      label: copy.net,
+      value: formatValue(history.netRate[index], 1, "W"),
+      tone: "net",
+    },
   ];
   return (
     <div className="summary-cards">
       {cards.map((card) => (
-        <article key={card.label} className={`summary-card summary-card--${card.tone}`}>
+        <article
+          key={card.label}
+          className={`summary-card summary-card--${card.tone}`}
+        >
           <span>{card.label}</span>
           <strong>{card.value}</strong>
         </article>
@@ -236,26 +288,117 @@ function SummaryCards({
   );
 }
 
-function ResponsePanel({ result, index, language }: { result: SimulationResult; index: number; language: Language }) {
+function ResponsePanel({
+  result,
+  index,
+  language,
+}: {
+  result: SimulationResult;
+  index: number;
+  language: Language;
+}) {
   const copy = COPY[language];
   const history = result.dataHistory;
-  const entries = [
-    [copy.shivering, history.shiveringIntensity[index]],
-    [copy.sweating, history.sweatingIntensity[index]],
-    [copy.constriction, history.vasoconstrictionIntensity[index]],
-    [copy.dilation, history.vasodilationIntensity[index]],
-  ] as const;
+  type ResponseEntry = {
+    label: string;
+    value: number | undefined;
+    unit: string;
+    meter?: number;
+    meterLabel?: string;
+    detail?: string;
+  };
+  const shiveringHeat = history.shiveringHeatProductionWatts?.[index];
+  const shiveringCapacity = history.shiveringModelCapacityPercent?.[index];
+  const shiveringMetEquivalent = history.shiveringRmrMultiple?.[index];
+  const sweatRate = history.sweatEvaporationRateGPerH?.[index];
+  const cumulativeSweat = history.cumulativeSweatEvaporatedMl?.[index];
+  const skinWettedness = history.skinWettednessPercent?.[index];
+  const usesPhysicalMeasures =
+    shiveringHeat !== undefined || sweatRate !== undefined;
+  const entries: ResponseEntry[] = usesPhysicalMeasures
+    ? [
+        {
+          label: copy.shiveringHeat,
+          value: shiveringHeat,
+          unit: "W",
+          meter: shiveringCapacity,
+          meterLabel: copy.modelCapacity,
+          detail: `${copy.shiveringMetabolicIncrement}: ${formatValue(shiveringMetEquivalent, 1, "met")}`,
+        },
+        {
+          label: copy.sweatRate,
+          value: sweatRate,
+          unit: "g/h",
+          meter: skinWettedness,
+          meterLabel: copy.skinWettedness,
+          detail: `${copy.skinWettedness}: ${formatValue(skinWettedness, 0, "%")} · ${copy.cumulativeSweat}: ${formatValue(cumulativeSweat, 0, "mL")}`,
+        },
+        {
+          label: copy.constriction,
+          value: history.vasoconstrictionIntensity[index],
+          unit: "%",
+          meter: history.vasoconstrictionIntensity[index],
+          meterLabel: copy.constriction,
+        },
+        {
+          label: copy.dilation,
+          value: history.vasodilationIntensity[index],
+          unit: "%",
+          meter: history.vasodilationIntensity[index],
+          meterLabel: copy.dilation,
+        },
+      ]
+    : [
+        {
+          label: copy.shivering,
+          value: history.shiveringIntensity[index],
+          unit: "%",
+          meter: history.shiveringIntensity[index],
+        },
+        {
+          label: copy.sweating,
+          value: history.sweatingIntensity[index],
+          unit: "%",
+          meter: history.sweatingIntensity[index],
+        },
+        {
+          label: copy.constriction,
+          value: history.vasoconstrictionIntensity[index],
+          unit: "%",
+          meter: history.vasoconstrictionIntensity[index],
+        },
+        {
+          label: copy.dilation,
+          value: history.vasodilationIntensity[index],
+          unit: "%",
+          meter: history.vasodilationIntensity[index],
+        },
+      ];
   return (
     <section className="response-panel" aria-labelledby="responses-title">
       <h3 id="responses-title">{copy.responses}</h3>
       <div className="response-panel__grid">
-        {entries.map(([label, value]) => (
-          <div key={label}>
-            <span>{label}</span>
-            <div className="response-meter" aria-label={`${label}: ${formatValue(value, 1, "%")}`}>
-              <span style={{ width: `${Math.min(100, Math.max(0, value ?? 0))}%` }} />
+        {entries.map((entry) => (
+          <div key={entry.label}>
+            <div className="response-entry__heading">
+              <span>{entry.label}</span>
+              <strong>{formatValue(entry.value, 1, entry.unit)}</strong>
             </div>
-            <strong>{formatValue(value, 1, "%")}</strong>
+            {entry.meter !== undefined ? (
+              <div
+                className="response-meter"
+                aria-label={`${entry.meterLabel ?? entry.label}: ${formatValue(entry.meter, 1, "%")}`}
+              >
+                <span
+                  style={{
+                    width: `${Math.min(100, Math.max(0, entry.meter ?? 0))}%`,
+                  }}
+                />
+              </div>
+            ) : null}
+            {entry.detail ? (
+              <small className="response-entry__detail">{entry.detail}</small>
+            ) : null}
           </div>
         ))}
       </div>
@@ -280,8 +423,9 @@ export function ResultsDashboard({
   const copy = COPY[language];
   const [playing, setPlaying] = useState(false);
   const [trendMode, setTrendMode] = useState<TrendMode>("regional");
-  const metric = REGIONAL_METRICS.find((candidate) => candidate.key === metricKey)
-    ?? REGIONAL_METRICS[0];
+  const metric =
+    REGIONAL_METRICS.find((candidate) => candidate.key === metricKey) ??
+    REGIONAL_METRICS[0];
   const maximumIndex = Math.max(0, (result?.dataHistory.time.length ?? 1) - 1);
   const index = Math.min(maximumIndex, Math.max(0, selectedIndex));
 
@@ -324,8 +468,11 @@ export function ResultsDashboard({
   const regionalValues = regionalMatrix[index] ?? [];
   const selectedSeries = regionalMatrix.map((row) => row[selectedSegmentIndex]);
   const oppositeSegment = counterpart(selectedSegment);
-  const oppositeIndex = oppositeSegment ? BODY_SEGMENTS.indexOf(oppositeSegment) : -1;
-  const oppositeSeries = oppositeIndex >= 0 ? regionalMatrix.map((row) => row[oppositeIndex]) : [];
+  const oppositeIndex = oppositeSegment
+    ? BODY_SEGMENTS.indexOf(oppositeSegment)
+    : -1;
+  const oppositeSeries =
+    oppositeIndex >= 0 ? regionalMatrix.map((row) => row[oppositeIndex]) : [];
   const meanSeries = regionalMatrix.map(mean);
   const unit = displayUnit(result?.regionalMetrics.units[metric.key] ?? "");
   const stageStart = result ? stageStartIndex(result, index) : 0;
@@ -339,28 +486,74 @@ export function ResultsDashboard({
     }
     if (trendMode === "temperature") {
       return [
-        { id: "core", label: copy.coreSeries, values: result.dataHistory.coreTemp, color: "#bb5249" },
-        { id: "skin", label: copy.skinSeries, values: result.dataHistory.skinTemp, color: "#287f9b" },
+        {
+          id: "core",
+          label: copy.coreSeries,
+          values: result.dataHistory.coreTemp,
+          color: "#bb5249",
+        },
+        {
+          id: "skin",
+          label: copy.skinSeries,
+          values: result.dataHistory.skinTemp,
+          color: "#287f9b",
+        },
       ];
     }
     if (trendMode === "balance") {
       return [
-        { id: "gain", label: copy.gainSeries, values: result.dataHistory.totalGain, color: "#4f8d5d" },
-        { id: "loss", label: copy.lossSeries, values: result.dataHistory.totalLoss, color: "#287f9b" },
-        { id: "net", label: copy.netSeries, values: result.dataHistory.netRate, color: "#d4743c" },
+        {
+          id: "gain",
+          label: copy.gainSeries,
+          values: result.dataHistory.totalGain,
+          color: "#4f8d5d",
+        },
+        {
+          id: "loss",
+          label: copy.lossSeries,
+          values: result.dataHistory.totalLoss,
+          color: "#287f9b",
+        },
+        {
+          id: "net",
+          label: copy.netSeries,
+          values: result.dataHistory.netRate,
+          color: "#d4743c",
+        },
       ];
     }
     const series: TrendSeries[] = [
-      { id: selectedSegment, label: SEGMENT_LABELS[selectedSegment][language], values: selectedSeries, color: "#d4743c" },
+      {
+        id: selectedSegment,
+        label: SEGMENT_LABELS[selectedSegment][language],
+        values: selectedSeries,
+        color: "#d4743c",
+      },
       { id: "mean", label: copy.mean, values: meanSeries, color: "#287f9b" },
     ];
     if (oppositeSegment) {
-      series.push({ id: oppositeSegment, label: `${copy.counterpart}: ${SEGMENT_LABELS[oppositeSegment][language]}`, values: oppositeSeries, color: "#8170c9" });
+      series.push({
+        id: oppositeSegment,
+        label: `${copy.counterpart}: ${SEGMENT_LABELS[oppositeSegment][language]}`,
+        values: oppositeSeries,
+        color: "#8170c9",
+      });
     }
     return series;
-  }, [copy, language, meanSeries, oppositeSegment, oppositeSeries, result, selectedSegment, selectedSeries, trendMode]);
+  }, [
+    copy,
+    language,
+    meanSeries,
+    oppositeSegment,
+    oppositeSeries,
+    result,
+    selectedSegment,
+    selectedSeries,
+    trendMode,
+  ]);
 
-  const trendUnit = trendMode === "regional" ? unit : trendMode === "temperature" ? "°C" : "W";
+  const trendUnit =
+    trendMode === "regional" ? unit : trendMode === "temperature" ? "°C" : "W";
   const trendDomain = trendMode === "regional" ? metricDomain : undefined;
 
   return (
@@ -370,7 +563,12 @@ export function ResultsDashboard({
           <p className="eyebrow">03</p>
           <h1>{copy.title}</h1>
         </div>
-        <StatusBanner status={status} detail={statusDetail} stale={stale} language={language} />
+        <StatusBanner
+          status={status}
+          detail={statusDetail}
+          stale={stale}
+          language={language}
+        />
       </div>
 
       {!result ? (
@@ -386,17 +584,26 @@ export function ResultsDashboard({
         <>
           <SummaryCards result={result} index={index} language={language} />
 
-          <section className="time-controller" aria-labelledby="time-controller-title">
+          <section
+            className="time-controller"
+            aria-labelledby="time-controller-title"
+          >
             <div className="time-controller__meta">
               <div>
                 <span id="time-controller-title">{copy.time}</span>
-                <strong>{result.dataHistory.time[index]?.toFixed(0) ?? index} min</strong>
+                <strong>
+                  {result.dataHistory.time[index]?.toFixed(0) ?? index} min
+                </strong>
               </div>
               <div>
                 <span>{copy.stage}</span>
                 <strong>{currentStageName(result, index)}</strong>
               </div>
-              <button type="button" className="button button--secondary" onClick={togglePlayback}>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={togglePlayback}
+              >
                 {playing ? "Ⅱ" : "▶"} {playing ? copy.pause : copy.play}
               </button>
             </div>
@@ -412,21 +619,36 @@ export function ResultsDashboard({
             />
             <div className="time-controller__stages" aria-hidden="true">
               {result.stageRanges.map((range) => (
-                <span key={range.id} style={{ flexGrow: Math.max(1, range.endMinute - range.startMinute) }}>{range.name}</span>
+                <span
+                  key={range.id}
+                  style={{
+                    flexGrow: Math.max(1, range.endMinute - range.startMinute),
+                  }}
+                >
+                  {range.name}
+                </span>
               ))}
             </div>
           </section>
 
           <section className="body-workspace">
             <div className="body-workspace__map">
-              <div className="metric-tabs" role="tablist" aria-label={copy.metric}>
+              <div
+                className="metric-tabs"
+                role="tablist"
+                aria-label={copy.metric}
+              >
                 {REGIONAL_METRICS.map((candidate) => (
                   <button
                     key={candidate.key}
                     type="button"
                     role="tab"
                     aria-selected={candidate.key === metric.key}
-                    className={candidate.key === metric.key ? "metric-tab metric-tab--active" : "metric-tab"}
+                    className={
+                      candidate.key === metric.key
+                        ? "metric-tab metric-tab--active"
+                        : "metric-tab"
+                    }
                     onClick={() => onSelectMetric(candidate.key)}
                   >
                     <span>{candidate.shortLabel}</span>
@@ -434,58 +656,138 @@ export function ResultsDashboard({
                   </button>
                 ))}
               </div>
-              <BodyMap metric={metric} values={regionalValues} unit={unit} selectedSegment={selectedSegment} language={language} onSelectSegment={onSelectSegment} domain={metricDomain} />
+              <BodyMap
+                metric={metric}
+                values={regionalValues}
+                unit={unit}
+                selectedSegment={selectedSegment}
+                language={language}
+                onSelectSegment={onSelectSegment}
+                domain={metricDomain}
+              />
             </div>
 
-            <aside className="region-inspector" aria-labelledby="region-detail-title">
+            <aside
+              className="region-inspector"
+              aria-labelledby="region-detail-title"
+            >
               <p className="eyebrow">{metric.shortLabel}</p>
-              <h2 id="region-detail-title">{SEGMENT_LABELS[selectedSegment][language]}</h2>
+              <h2 id="region-detail-title">
+                {SEGMENT_LABELS[selectedSegment][language]}
+              </h2>
               <div className="region-inspector__primary">
                 <span>{copy.current}</span>
-                <strong>{formatValue(currentRegionValue, metric.decimals, unit)}</strong>
+                <strong>
+                  {formatValue(currentRegionValue, metric.decimals, unit)}
+                </strong>
               </div>
               <dl className="region-stats">
-                <div><dt>{copy.stageDelta}</dt><dd>{formatValue(stageDelta, metric.decimals, unit)}</dd></div>
-                <div><dt>{copy.range}</dt><dd>{selectedFinite.length ? `${formatValue(Math.min(...selectedFinite), metric.decimals, unit)} – ${formatValue(Math.max(...selectedFinite), metric.decimals, unit)}` : "—"}</dd></div>
+                <div>
+                  <dt>{copy.stageDelta}</dt>
+                  <dd>{formatValue(stageDelta, metric.decimals, unit)}</dd>
+                </div>
+                <div>
+                  <dt>{copy.range}</dt>
+                  <dd>
+                    {selectedFinite.length
+                      ? `${formatValue(Math.min(...selectedFinite), metric.decimals, unit)} – ${formatValue(Math.max(...selectedFinite), metric.decimals, unit)}`
+                      : "—"}
+                  </dd>
+                </div>
               </dl>
-              <ResponsePanel result={result} index={index} language={language} />
+              <ResponsePanel
+                result={result}
+                index={index}
+                language={language}
+              />
             </aside>
           </section>
 
           <section className="trend-section" aria-labelledby="trend-title">
             <div className="trend-section__heading">
-              <h2 id="trend-title">{trendMode === "regional" ? copy.regionalTrend : trendMode === "temperature" ? copy.temperatureTrend : copy.balanceTrend}</h2>
+              <h2 id="trend-title">
+                {trendMode === "regional"
+                  ? copy.regionalTrend
+                  : trendMode === "temperature"
+                    ? copy.temperatureTrend
+                    : copy.balanceTrend}
+              </h2>
               <div className="segmented-control" role="tablist">
-                {([
-                  ["regional", copy.regionalTrend],
-                  ["temperature", copy.temperatureTrend],
-                  ["balance", copy.balanceTrend],
-                ] as const).map(([mode, label]) => (
-                  <button key={mode} type="button" role="tab" aria-selected={trendMode === mode} onClick={() => setTrendMode(mode)}>{label}</button>
+                {(
+                  [
+                    ["regional", copy.regionalTrend],
+                    ["temperature", copy.temperatureTrend],
+                    ["balance", copy.balanceTrend],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="tab"
+                    aria-selected={trendMode === mode}
+                    onClick={() => setTrendMode(mode)}
+                  >
+                    {label}
+                  </button>
                 ))}
               </div>
             </div>
-            <TrendChart times={result.dataHistory.time} series={trendSeries} stageRanges={result.stageRanges} selectedIndex={index} language={language} onSelectIndex={onSelectIndex} unit={trendUnit} yDomain={trendDomain} />
+            <TrendChart
+              times={result.dataHistory.time}
+              series={trendSeries}
+              stageRanges={result.stageRanges}
+              selectedIndex={index}
+              language={language}
+              onSelectIndex={onSelectIndex}
+              unit={trendUnit}
+              yDomain={trendDomain}
+            />
           </section>
 
-          <section className="stage-summary" aria-labelledby="stage-summary-title">
-            <div className="section-heading"><h2 id="stage-summary-title">{copy.stageSummary}</h2></div>
+          <section
+            className="stage-summary"
+            aria-labelledby="stage-summary-title"
+          >
+            <div className="section-heading">
+              <h2 id="stage-summary-title">{copy.stageSummary}</h2>
+            </div>
             <div className="stage-summary__grid">
               {result.stageSummaries.map((summary) => (
                 <article key={summary.id}>
-                  <span>{summary.startMinute}–{summary.endMinute} min</span>
+                  <span>
+                    {summary.startMinute}–{summary.endMinute} min
+                  </span>
                   <h3>{summary.name}</h3>
                   <dl>
-                    <div><dt>{copy.finalCore}</dt><dd>{formatValue(summary.final.coreTempC, 2, "°C")}</dd></div>
-                    <div><dt>{copy.stageAverage}</dt><dd>{formatValue(summary.averages.comfortScore, 0, "/100")}</dd></div>
-                    <div><dt>{copy.skinRange}</dt><dd>{formatValue(summary.extrema.skinTempMinC, 1, "°C")} – {formatValue(summary.extrema.skinTempMaxC, 1, "°C")}</dd></div>
+                    <div>
+                      <dt>{copy.finalCore}</dt>
+                      <dd>{formatValue(summary.final.coreTempC, 2, "°C")}</dd>
+                    </div>
+                    <div>
+                      <dt>{copy.stageAverage}</dt>
+                      <dd>
+                        {formatValue(summary.averages.comfortScore, 0, "/100")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{copy.skinRange}</dt>
+                      <dd>
+                        {formatValue(summary.extrema.skinTempMinC, 1, "°C")} –{" "}
+                        {formatValue(summary.extrema.skinTempMaxC, 1, "°C")}
+                      </dd>
+                    </div>
                   </dl>
                 </article>
               ))}
             </div>
           </section>
 
-          <AdvancedData result={result} language={language} selectedIndex={index} onSelectIndex={onSelectIndex} />
+          <AdvancedData
+            result={result}
+            language={language}
+            selectedIndex={index}
+            onSelectIndex={onSelectIndex}
+          />
         </>
       )}
 

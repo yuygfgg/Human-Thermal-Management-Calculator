@@ -1,3 +1,68 @@
+"""Thermal simulation adapter built around JOS-3.
+
+Academic and standards references used by this module
+------------------------------------------------------
+[JOS3] Takahashi Y, Nomoto A, Yoda S, Hisayama R, Ogata M, Ozeki Y,
+Tanabe S. Thermoregulation model JOS-3 with new open source code.
+Energy and Buildings. 2021;231:110575.
+https://doi.org/10.1016/j.enbuild.2020.110575
+
+[XU2005] Xu X, Tikuisis P, Gonzalez R, Giesbrecht G. Thermoregulatory
+model for prediction of long-term cold exposure. Computers in Biology and
+Medicine. 2005;35(4):287-298.
+https://doi.org/10.1016/j.compbiomed.2004.01.004
+
+[TIKUISIS1999] Tikuisis P, Giesbrecht GG. Prediction of shivering heat
+production from core and mean skin temperatures. European Journal of Applied
+Physiology and Occupational Physiology. 1999;79(3):221-229.
+https://doi.org/10.1007/s004210050499
+
+[HONG1979] Hong SI, Nadel ER. Thermogenic control during exercise in a cold
+environment. Journal of Applied Physiology. 1979;47(5):1084-1089.
+https://doi.org/10.1152/jappl.1979.47.5.1084
+
+[FUJIMOTO2019] Fujimoto T, Tsuji B, Sasaki Y, Dobashi K, Sengoku Y, Fujii N,
+Nishiyasu T. Low-intensity exercise delays the shivering response to core
+cooling. American Journal of Physiology-Regulatory, Integrative and
+Comparative Physiology. 2019;316(5):R535-R542.
+https://doi.org/10.1152/ajpregu.00203.2018
+
+[HAMAN2017] Haman F, Blondin DP. Shivering thermogenesis in humans: Origin,
+contribution and metabolic requirement. Temperature. 2017;4(3):217-226.
+https://doi.org/10.1080/23328940.2017.1328999
+
+[ISO7933] ISO 7933:2023. Ergonomics of the thermal environment - Analytical
+determination and interpretation of thermal stress using calculation of the
+predicted heat strain. https://www.iso.org/standard/75838.html
+
+[ISO8996] ISO 8996:2021. Ergonomics of the thermal environment -
+Determination of metabolic rate. https://www.iso.org/standard/74443.html
+
+[DUBOIS1916] Du Bois D, Du Bois EF. A formula to estimate the approximate
+surface area if height and weight be known. Archives of Internal Medicine.
+1916;17:863-871.
+https://doi.org/10.1001/archinte.1916.00080130010002
+
+[DEURENBERG1991] Deurenberg P, Weststrate JA, Seidell JC. Body mass index as
+a measure of body fatness: age- and sex-specific prediction formulas. British
+Journal of Nutrition. 1991;65(2):105-114.
+https://doi.org/10.1079/BJN19910073
+
+[ISO9920] ISO 9920:2007. Ergonomics of the thermal environment - Estimation
+of thermal insulation and water vapour resistance of a clothing ensemble.
+https://www.iso.org/standard/39257.html
+
+The JOS-3 source code attributes its skin-temperature shivering threshold
+coefficients to "Asaka, 2016" but does not include a complete bibliographic
+record. The coefficients are therefore cited here through [JOS3], which is
+the reproducible source used by this adapter.
+
+Implementation note: the references identify source models and observed
+relationships. Numerical values that are not directly reported by a reference
+remain project parameters. The dashboard comfort score, regional clothing
+aggregation, and solar conversion are project-specific heuristics.
+"""
+
 from __future__ import annotations
 
 import contextvars
@@ -17,9 +82,18 @@ from scenario_contract import (
     validate_scenario,
 )
 
-_simulation_context: contextvars.ContextVar[Dict[str, float]] = contextvars.ContextVar(
+_simulation_context: contextvars.ContextVar[Dict[str, Any]] = contextvars.ContextVar(
     "htm_simulation_context",
-    default={"shivering_scale": 1.0, "medium_hc_scale": 1.0},
+    default={
+        "shivering_scale": 1.0,
+        "shivering_gain_scale": 1.0,
+        "shivering_core_shift_c": 0.0,
+        "shivering_temperature_scale": 1.0,
+        "shivering_fatigue_scale": 1.0,
+        "shivering_max_w": 0.0,
+        "shivering_smooth_threshold": False,
+        "medium_hc_scale": 1.0,
+    },
 )
 
 BODY_REGIONS = {
@@ -39,10 +113,34 @@ IDEAL_CLO_RATIOS = {
     "feet": 0.25,
 }
 
+# The JOS-3 model [JOS3] calculates solar heat gain internally. These constants
+# support the adapter's radiant-temperature history and medium-conductivity
+# scaling.
 HR_W_M2K = 4.7
 SOLAR_EFFECTIVE_FACTOR = 0.12
 AIR_THERMAL_CONDUCTIVITY_W_MK = 0.026
-DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W = 270.0
+# These constants define the adapter's bounded exercise interpolation informed
+# by [HONG1979] and [FUJIMOTO2019].
+SHIVERING_MAX_THRESHOLD_SHIFT_C = 0.30
+SHIVERING_GAIN_SUPPRESSION_START_MET = 1.0
+SHIVERING_GAIN_SUPPRESSION_END_MET = 8.0
+SHIVERING_MAX_GAIN_SUPPRESSION = 0.50
+
+# These constants implement the low-core and maximum-response parts of the
+# adapter, informed by [XU2005], [TIKUISIS1999], and [HAMAN2017].
+SHIVERING_MAX_TO_BMR_RATIO = 4.0
+# The 32/30 degC bounds and smooth shape follow the [XU2005] model form.
+SHIVERING_LOW_CORE_ONSET_C = 32.0
+SHIVERING_LOW_CORE_ARREST_C = 30.0
+SHIVERING_LOW_CORE_EXPONENT = 1.4
+SHIVERING_LOW_CORE_GAIN = 2.0
+SHIVERING_ENDURANCE_ALPHA_H = 18.0
+SHIVERING_ENDURANCE_EXPONENT = 4.0
+SHIVERING_FATIGUE_SENSITIVITY = 0.38
+# [ISO7933] expresses evaporation as heat flow divided by latent heat. 2.42
+# kJ/g is a representative value near skin temperature; the result estimates
+# evaporated water and not total gland secretion.
+SWEAT_LATENT_HEAT_J_PER_G = 2420.0
 
 JOS3_REGION_SUFFIXES = (
     "Head",
@@ -121,7 +219,6 @@ class ScenarioConfig:
     name: str
     subject: SubjectConfig
     stages: tuple[StageConfig, ...]
-    shivering_suppression_threshold_w: float
 
 
 @dataclass(frozen=True)
@@ -153,6 +250,41 @@ class ActivityState:
     work_w: float
     suppression: float
     scale: float
+    threshold_shift_c: float
+
+
+@dataclass
+class ShiveringFatigueState:
+    """Track cumulative shivering load using the [XU2005] model form.
+
+    The state applies the endurance-time relation to the simulated shivering
+    history.
+    """
+
+    max_shivering_w: float
+    exposure_load: float = 0.0
+    consumed_energy_j: float = 0.0
+    scale: float = 1.0
+
+    def update(self, shivering_w: float, dtime_s: float) -> None:
+        shivering_w = max(0.0, float(shivering_w))
+        self.consumed_energy_j += shivering_w * dtime_s
+        relative_load = _clamp(
+            shivering_w / max(self.max_shivering_w, 1e-6), 0.0, 0.999
+        )
+        if relative_load <= 1e-6:
+            return
+
+        endurance_h = (SHIVERING_ENDURANCE_ALPHA_H / relative_load) * math.exp(
+            -SHIVERING_ENDURANCE_EXPONENT * relative_load
+        )
+        self.exposure_load += (dtime_s / 3600.0) / endurance_h
+        if self.exposure_load <= 1.0:
+            self.scale = 1.0
+        else:
+            self.scale = _sech(
+                SHIVERING_FATIGUE_SENSITIVITY * (self.exposure_load - 1.0)
+            )
 
 
 def _patch_jos3_shivering() -> None:
@@ -165,10 +297,88 @@ def _patch_jos3_shivering() -> None:
 
     original = threg.shivering
 
+    def smooth_threshold_inputs(
+        forwarded_args: list[Any],
+        forwarded_kwargs: Dict[str, Any],
+        core_shift_c: float,
+    ) -> None:
+        """Replace JOS-3's binary threshold with a continuous core drive.
+
+        JOS-3 computes the shivering drive from ``-err_cr[0]`` and then
+        applies a binary skin-temperature threshold. The binary comparison
+        creates chatter when core temperature is close to that threshold. Keep the
+        skin-temperature-dependent threshold, but express the
+        drive as ``threshold - core temperature`` so it reaches zero smoothly.
+        The base threshold and the JOS-3 implementation are cited as [JOS3].
+        """
+        if len(forwarded_args) >= 4:
+            err_cr = np.asarray(forwarded_args[0], dtype=float).copy()
+            tcr = np.asarray(forwarded_args[2], dtype=float)
+            tsk = np.asarray(forwarded_args[3], dtype=float)
+            sex = (
+                forwarded_args[8]
+                if len(forwarded_args) >= 9
+                else forwarded_kwargs.get("sex", "male")
+            )
+            options_index = 10
+            if len(forwarded_args) > options_index:
+                options = dict(forwarded_args[options_index] or {})
+                forwarded_args[options_index] = options
+            else:
+                options = dict(forwarded_kwargs.get("options") or {})
+                forwarded_kwargs["options"] = options
+        else:
+            err_cr = np.asarray(forwarded_kwargs["err_cr"], dtype=float).copy()
+            tcr = np.asarray(forwarded_kwargs["tcr"], dtype=float)
+            tsk = np.asarray(forwarded_kwargs["tsk"], dtype=float)
+            sex = forwarded_kwargs.get("sex", "male")
+            options = dict(forwarded_kwargs.get("options") or {})
+            forwarded_kwargs["options"] = options
+
+        # This is the skin-temperature threshold implemented by JOS-3 [JOS3].
+        # Reuse the JOS-3 package equation while removing only the discontinuous
+        # comparison.
+        skin_weights = np.asarray(getattr(threg, "_BSAst"), dtype=float)
+        mean_skin_c = float(np.average(tsk, weights=skin_weights))
+        if mean_skin_c < 31.0:
+            threshold_c = 36.6
+        elif str(sex).lower() == "male":
+            threshold_c = -0.2436 * mean_skin_c + 44.10
+        else:
+            threshold_c = -0.2250 * mean_skin_c + 43.05
+
+        effective_threshold_c = threshold_c - core_shift_c
+        err_cr[0] = float(tcr[0]) - effective_threshold_c
+        if len(forwarded_args) >= 1:
+            forwarded_args[0] = err_cr
+        else:
+            forwarded_kwargs["err_cr"] = err_cr
+
+        # Prevent the original function from applying its binary gate to the
+        # already continuous error signal.
+        options["shivering_threshold"] = False
+
     def shivering_with_activity(*args: Any, **kwargs: Any) -> Any:
-        value = original(*args, **kwargs)
-        scale = _simulation_context.get().get("shivering_scale", 1.0)
-        return np.asarray(value, dtype=float) * float(scale)
+        context = _simulation_context.get()
+        forwarded_args = list(args)
+        forwarded_kwargs = dict(kwargs)
+        core_shift_c = float(context.get("shivering_core_shift_c", 0.0))
+
+        if context.get("shivering_smooth_threshold", False):
+            smooth_threshold_inputs(forwarded_args, forwarded_kwargs, core_shift_c)
+
+        value = np.asarray(original(*forwarded_args, **forwarded_kwargs), dtype=float)
+        max_shivering_w = float(context.get("shivering_max_w", 0.0))
+        total_shivering_w = float(value.sum())
+        if max_shivering_w > 0.0 and total_shivering_w > max_shivering_w:
+            value *= max_shivering_w / total_shivering_w
+        gain_scale = float(
+            context.get("shivering_gain_scale", context.get("shivering_scale", 1.0))
+        )
+        temperature_scale = float(context.get("shivering_temperature_scale", 1.0))
+        fatigue_scale = float(context.get("shivering_fatigue_scale", 1.0))
+        scale = gain_scale * temperature_scale * fatigue_scale
+        return value * scale
 
     threg.shivering = shivering_with_activity
     threg._htm_shivering_patched = True
@@ -200,6 +410,10 @@ _patch_jos3_fixed_hc()
 
 def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
+
+
+def _sech(x: float) -> float:
+    return 1.0 / math.cosh(_clamp(float(x), 0.0, 700.0))
 
 
 def _json_sanitize(obj: Any) -> Any:
@@ -234,6 +448,7 @@ def _calculate_instant_comfort_score(
     net_rate: float,
     regional_clo: Dict[str, float],
 ) -> float:
+    """Return the dashboard comfort score."""
     temp_diff = core_t - base_core_t
     skin_dev = 0.0
     if skin_t < 32.0:
@@ -257,12 +472,14 @@ def _calculate_instant_comfort_score(
 
 
 def _bsa_m2(height_cm: float, weight_kg: float) -> float:
+    """Calculate body surface area with the Du Bois formula [DUBOIS1916]."""
     return 0.007184 * (height_cm**0.725) * (weight_kg**0.425)
 
 
 def _body_fat_percent(
     gender: str, height_cm: float, weight_kg: float, age_years: int
 ) -> float:
+    """Estimate body fat with the age/sex BMI formula from [DEURENBERG1991]."""
     bmi = weight_kg / ((height_cm / 100.0) ** 2)
     if gender == "female":
         fat = (1.20 * bmi) + (0.23 * age_years) - 5.4
@@ -334,11 +551,15 @@ def _normalize_scenario(scenario: Mapping[str, Any]) -> ScenarioConfig:
         name=str(scenario["name"]),
         subject=subject,
         stages=tuple(stages),
-        shivering_suppression_threshold_w=DEFAULT_SHIVER_SUPPRESS_THRESHOLD_W,
     )
 
 
 def _icl17_to_regional_clo(icl17: np.ndarray) -> Dict[str, float]:
+    """Aggregate JOS-3 nodes using the clothing ensemble mapping [ISO9920].
+
+    ISO 9920 supports the insulation estimate; the six-region aggregation is
+    defined by the dashboard.
+    """
     area = {
         "head": (0.055, 0.015),
         "torso": (0.12, 0.12, 0.11),
@@ -408,25 +629,41 @@ def _latest_shivering_w(model: Any) -> float:
     return float(np.asarray(value, dtype=float).sum())
 
 
-def _temperature_shivering_scale(core_temp_c: float) -> float:
-    if 34.0 <= core_temp_c <= 37.2:
+def _low_core_shivering_scale(core_temp_c: float) -> float:
+    """Apply the low-core inhibition described by [XU2005]."""
+    if core_temp_c >= SHIVERING_LOW_CORE_ONSET_C:
         return 1.0
-    if core_temp_c < 34.0:
-        return max(0.0, (core_temp_c - 30.0) / 4.0)
-    return max(0.0, 1.0 - (core_temp_c - 37.2) / 0.8)
+    if core_temp_c <= SHIVERING_LOW_CORE_ARREST_C:
+        return 0.0
+    argument = SHIVERING_LOW_CORE_GAIN * (
+        (SHIVERING_LOW_CORE_ONSET_C - core_temp_c) ** SHIVERING_LOW_CORE_EXPONENT
+    )
+    return _sech(argument)
 
 
 def _activity_state(
     activity_met: float,
     bsa_m2: float,
-    suppression_threshold_w: float,
 ) -> ActivityState:
+    # ISO 8996 [ISO8996] defines the met convention used by the scenario.
+    # Hong and Nadel [HONG1979] and Fujimoto et al. [FUJIMOTO2019] support the
+    # exercise-suppression direction used by the bounded interpolation below.
     work_w = max(0.0, (activity_met - 1.0) * 58.2 * bsa_m2)
-    suppression = min(1.0, work_w / suppression_threshold_w)
+    low_intensity_fraction = _clamp(activity_met - 1.0, 0.0, 1.0)
+    threshold_shift_c = SHIVERING_MAX_THRESHOLD_SHIFT_C * low_intensity_fraction
+    gain_range = (
+        SHIVERING_GAIN_SUPPRESSION_END_MET - SHIVERING_GAIN_SUPPRESSION_START_MET
+    )
+    gain_suppression = SHIVERING_MAX_GAIN_SUPPRESSION * _clamp(
+        (activity_met - SHIVERING_GAIN_SUPPRESSION_START_MET) / gain_range,
+        0.0,
+        1.0,
+    )
     return ActivityState(
         work_w=work_w,
-        suppression=suppression,
-        scale=_clamp(1.0 - suppression, 0.0, 1.0),
+        suppression=gain_suppression,
+        scale=1.0 - gain_suppression,
+        threshold_shift_c=threshold_shift_c,
     )
 
 
@@ -453,7 +690,6 @@ def _apply_conditions(
     conditions: StageSample,
     *,
     bsa_m2: float,
-    suppression_threshold_w: float,
 ) -> ActivityState:
     model.Ta = conditions.air_temp_c
     model.Tr = conditions.radiant_temp_c
@@ -462,18 +698,20 @@ def _apply_conditions(
     model.posture = conditions.posture
     model.Icl = np.asarray(conditions.icl17, dtype=float)
 
+    # 58.2 W/m² is the 1-met convention used by [ISO8996]. JOS-3's PAR is
+    # the activity-to-basal metabolic ratio, so the scenario's met input is
+    # converted to that ratio before each model step.
     model.PAR = float(
         _clamp((conditions.activity_met * 58.2) / float(model.BMR), 0.8, 12.0)
     )
     activity = _activity_state(
         conditions.activity_met,
         bsa_m2,
-        suppression_threshold_w,
     )
     model.options["shivering_activity_scale"] = activity.scale
     model.options["shivering_activity_suppression_coeff"] = activity.suppression
     model.options["shivering_activity_work_w"] = activity.work_w
-    model.options["shivering_activity_threshold_w"] = suppression_threshold_w
+    model.options["shivering_threshold_shift_c"] = activity.threshold_shift_c
     return activity
 
 
@@ -485,6 +723,7 @@ def _append_condition_sample(
     *,
     temperature_scale: float,
     fatigue_scale: float,
+    fatigue_load: float,
 ) -> None:
     effective_scale = activity.scale * temperature_scale * fatigue_scale
     row = {
@@ -503,8 +742,10 @@ def _append_condition_sample(
         "shiveringActivityScale": activity.scale,
         "shiveringSuppressionCoeff": activity.suppression,
         "shiveringWorkWatts": activity.work_w,
+        "shiveringThresholdShiftC": activity.threshold_shift_c,
         "shiveringTemperatureScale": temperature_scale,
         "shiveringFatigueScale": fatigue_scale,
+        "shiveringFatigueLoad": fatigue_load,
         "effectiveShiveringScale": effective_scale,
     }
     if not history:
@@ -528,6 +769,40 @@ def _regional_matrix(
 
 def _average(values: Sequence[float]) -> float:
     return float(sum(values) / len(values)) if values else 0.0
+
+
+def _evaporated_sweat_rate_g_per_h(evaporative_heat_w: Sequence[float]) -> List[float]:
+    """Convert JOS-3 evaporative heat loss using [ISO7933].
+
+    The conversion divides evaporative heat flow by a representative latent
+    heat of vaporization. It estimates water that evaporates at the skin; it
+    does not estimate total gland secretion or dripping sweat.
+    """
+    return [
+        max(0.0, float(value)) * 3600.0 / SWEAT_LATENT_HEAT_J_PER_G
+        for value in evaporative_heat_w
+    ]
+
+
+def _cumulative_evaporated_sweat_ml(
+    evaporative_heat_w: Sequence[float],
+    time_min: Sequence[float],
+) -> List[float]:
+    """Integrate the [ISO7933] evaporated-water estimate by trapezoids."""
+    if not evaporative_heat_w:
+        return []
+    cumulative = [0.0]
+    for index in range(1, len(evaporative_heat_w)):
+        dt_s = max(0.0, float(time_min[index] - time_min[index - 1]) * 60.0)
+        mean_heat_w = max(
+            0.0,
+            (float(evaporative_heat_w[index - 1]) + float(evaporative_heat_w[index]))
+            / 2.0,
+        )
+        cumulative.append(
+            cumulative[-1] + mean_heat_w * dt_s / SWEAT_LATENT_HEAT_J_PER_G
+        )
+    return cumulative
 
 
 def _canonical_scenario(config: ScenarioConfig) -> Dict[str, Any]:
@@ -591,6 +866,12 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
     _simulation_context.set(
         {
             "shivering_scale": 1.0,
+            "shivering_gain_scale": 1.0,
+            "shivering_core_shift_c": 0.0,
+            "shivering_temperature_scale": 1.0,
+            "shivering_fatigue_scale": 1.0,
+            "shivering_max_w": 0.0,
+            "shivering_smooth_threshold": False,
             "medium_hc_scale": initial_conditions.medium_hc_scale,
         }
     )
@@ -602,18 +883,30 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
         sex=subject.sex,
         ex_output=["Tcb", "BFsk", "Mshiv", "Esweat"],
     )
+    # Use the JOS-3 skin-temperature-dependent threshold [JOS3]. The wrapper
+    # applies it as a continuous drive to avoid binary threshold chatter.
+    model.options["shivering_threshold"] = False
     initial_activity = _apply_conditions(
         model,
         initial_conditions,
         bsa_m2=bsa,
-        suppression_threshold_w=config.shivering_suppression_threshold_w,
     )
-    initial_temperature_scale = _temperature_shivering_scale(
+    initial_temperature_scale = _low_core_shivering_scale(
         _latest_tcb(model, subject.base_core_temp_c)
+    )
+    resting_metabolic_w = max(1.0, float(model.BMR) * bsa)
+    fatigue_state = ShiveringFatigueState(
+        max_shivering_w=SHIVERING_MAX_TO_BMR_RATIO * resting_metabolic_w
     )
     _simulation_context.set(
         {
-            "shivering_scale": initial_activity.scale * initial_temperature_scale,
+            "shivering_scale": initial_activity.scale,
+            "shivering_gain_scale": initial_activity.scale,
+            "shivering_core_shift_c": initial_activity.threshold_shift_c,
+            "shivering_temperature_scale": initial_temperature_scale,
+            "shivering_fatigue_scale": fatigue_state.scale,
+            "shivering_max_w": fatigue_state.max_shivering_w,
+            "shivering_smooth_threshold": True,
             "medium_hc_scale": initial_conditions.medium_hc_scale,
         }
     )
@@ -625,13 +918,12 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
         initial_conditions,
         initial_activity,
         temperature_scale=initial_temperature_scale,
-        fatigue_scale=1.0,
+        fatigue_scale=fatigue_state.scale,
+        fatigue_load=fatigue_state.exposure_load,
     )
 
     stage_ranges: List[Dict[str, Any]] = []
     elapsed_min = 0
-    max_shivering_energy_j = 3.3e6
-    consumed_shivering_energy_j = 0.0
     for stage_index, stage in enumerate(config.stages):
         start_min = elapsed_min
         for step in range(stage.duration_min):
@@ -640,26 +932,25 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
                 model,
                 conditions,
                 bsa_m2=bsa,
-                suppression_threshold_w=config.shivering_suppression_threshold_w,
             )
-            consumed_shivering_energy_j += _latest_shivering_w(model) * 60.0
-            fatigue_scale = max(
-                0.0,
-                1.0 - (consumed_shivering_energy_j / max_shivering_energy_j),
-            )
-            temperature_scale = _temperature_shivering_scale(
+            fatigue_scale = fatigue_state.scale
+            temperature_scale = _low_core_shivering_scale(
                 _latest_tcb(model, subject.base_core_temp_c)
-            )
-            effective_shivering_scale = (
-                activity.scale * temperature_scale * fatigue_scale
             )
             _simulation_context.set(
                 {
-                    "shivering_scale": effective_shivering_scale,
+                    "shivering_scale": activity.scale,
+                    "shivering_gain_scale": activity.scale,
+                    "shivering_core_shift_c": activity.threshold_shift_c,
+                    "shivering_temperature_scale": temperature_scale,
+                    "shivering_fatigue_scale": fatigue_scale,
+                    "shivering_max_w": fatigue_state.max_shivering_w,
+                    "shivering_smooth_threshold": True,
                     "medium_hc_scale": conditions.medium_hc_scale,
                 }
             )
             model.simulate(times=1, dtime=60)
+            fatigue_state.update(_latest_shivering_w(model), 60.0)
             _append_condition_sample(
                 condition_history,
                 stage,
@@ -667,6 +958,7 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
                 activity,
                 temperature_scale=temperature_scale,
                 fatigue_scale=fatigue_scale,
+                fatigue_load=fatigue_state.exposure_load,
             )
 
         elapsed_min += stage.duration_min
@@ -698,6 +990,27 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
     thl_sk_w = _sum_segments(raw_results, "THLsk")
     bf_sk = _sum_segments(raw_results, "BFsk")
     mshiv_w = _sum_segments(raw_results, "Mshiv")
+    shivering_heat_w = [max(0.0, float(value)) for value in mshiv_w]
+    shivering_capacity_percent = (
+        (
+            100.0
+            * np.asarray(shivering_heat_w, dtype=float)
+            / max(fatigue_state.max_shivering_w, 1e-6)
+        )
+        .clip(0.0, 100.0)
+        .tolist()
+    )
+    shivering_rmr_multiple = (
+        # Displayed as a met-like incremental contribution by project
+        # convention. The stored ratio remains Mshiv/RMR for compatibility.
+        np.asarray(shivering_heat_w, dtype=float)
+        / max(resting_metabolic_w, 1e-6)
+    ).tolist()
+    sweat_evaporation_rate_g_per_h = _evaporated_sweat_rate_g_per_h(sweat_loss_w)
+    cumulative_sweat_evaporated_ml = _cumulative_evaporated_sweat_ml(
+        sweat_loss_w,
+        time_min,
+    )
 
     expected_rows = len(time_min)
     if any(len(values) != expected_rows for values in condition_history.values()):
@@ -714,12 +1027,21 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
     net_rate_w = (met_arr - res_arr - dry_arr - latent_arr).tolist()
     total_gain_w = met_arr.tolist()
     total_loss_w = (res_arr + dry_arr + latent_arr).tolist()
+    # JOS-3 reports Met as total metabolic heat and Mshiv as the shivering
+    # component [JOS3]. This ratio is a heat-allocation diagnostic. The UI uses
+    # the separate model-capacity percentage only as the source of its bar.
     shiver_intensity = (
         (100.0 * (np.asarray(mshiv_w) / np.maximum(1e-6, met_arr)))
         .clip(0, 100)
         .tolist()
     )
+    # WetMean is JOS-3's whole-body skin wettedness fraction [JOS3].
     wet_mean = [float(x) for x in raw_results.get("WetMean", [])]
+    skin_wettedness_percent = (
+        (100.0 * np.asarray(wet_mean, dtype=float)).clip(0.0, 100.0).tolist()
+    )
+    # Preserve the legacy comfort index. Physical output uses WetMean and
+    # evaporative heat flow directly.
     eff_sweat = np.maximum(0.0, (np.asarray(wet_mean) - 0.06) / 0.94).clip(0, 1)
     sweat_intensity = (100.0 * eff_sweat).tolist()
 
@@ -772,6 +1094,28 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
         "netHeatRateWatts": float(net_rate_w[-1]) if net_rate_w else 0.0,
         "shiveringIntensity": float(shiver_intensity[-1]) if shiver_intensity else 0.0,
         "sweatingIntensity": float(sweat_intensity[-1]) if sweat_intensity else 0.0,
+        "shiveringHeatProductionWatts": (
+            float(shivering_heat_w[-1]) if shivering_heat_w else 0.0
+        ),
+        "shiveringModelCapacityPercent": (
+            float(shivering_capacity_percent[-1]) if shivering_capacity_percent else 0.0
+        ),
+        "shiveringRmrMultiple": (
+            float(shivering_rmr_multiple[-1]) if shivering_rmr_multiple else 0.0
+        ),
+        "sweatEvaporationRateGPerH": (
+            float(sweat_evaporation_rate_g_per_h[-1])
+            if sweat_evaporation_rate_g_per_h
+            else 0.0
+        ),
+        "cumulativeSweatEvaporatedMl": (
+            float(cumulative_sweat_evaporated_ml[-1])
+            if cumulative_sweat_evaporated_ml
+            else 0.0
+        ),
+        "skinWettednessPercent": (
+            float(skin_wettedness_percent[-1]) if skin_wettedness_percent else 0.0
+        ),
         "vasoconstrictionIntensity": float(vaso_i[-1]) if vaso_i else 0.0,
         "vasodilationIntensity": float(dilate_i[-1]) if dilate_i else 0.0,
         "deltaTrC": float(condition_history["radiantTemp"][-1])
@@ -783,10 +1127,16 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
             condition_history["shiveringSuppressionCoeff"][-1]
         ),
         "shiveringWorkWatts": float(condition_history["shiveringWorkWatts"][-1]),
-        "shiveringSuppressionThresholdW": float(
-            config.shivering_suppression_threshold_w
+        "shiveringThresholdShiftC": float(
+            condition_history["shiveringThresholdShiftC"][-1]
+        ),
+        "shiveringTemperatureScale": float(
+            condition_history["shiveringTemperatureScale"][-1]
         ),
         "shiveringFatigueScale": float(condition_history["shiveringFatigueScale"][-1]),
+        "shiveringFatigueLoad": float(condition_history["shiveringFatigueLoad"][-1]),
+        "shiveringMaxWatts": float(fatigue_state.max_shivering_w),
+        "shiveringConsumedEnergyKJ": float(fatigue_state.consumed_energy_j / 1000.0),
         "effectiveShiveringScale": float(
             condition_history["effectiveShiveringScale"][-1]
         ),
@@ -831,6 +1181,12 @@ def simulate_scenario(scenario: Mapping[str, Any]) -> Dict[str, Any]:
         "totalLoss": total_loss_w,
         "shiveringIntensity": shiver_intensity,
         "sweatingIntensity": sweat_intensity,
+        "shiveringHeatProductionWatts": shivering_heat_w,
+        "shiveringModelCapacityPercent": shivering_capacity_percent,
+        "shiveringRmrMultiple": shivering_rmr_multiple,
+        "sweatEvaporationRateGPerH": sweat_evaporation_rate_g_per_h,
+        "cumulativeSweatEvaporatedMl": cumulative_sweat_evaporated_ml,
+        "skinWettednessPercent": skin_wettedness_percent,
         "vasoconstrictionIntensity": vaso_i,
         "vasodilationIntensity": dilate_i,
         "instantComfortScore": instant_comfort_series,

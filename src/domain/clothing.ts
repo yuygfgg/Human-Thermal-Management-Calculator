@@ -7,6 +7,12 @@ import {
 } from "./types";
 import scenarioContract from "../../scenario-contract.json";
 
+// ISO 9920:2007, Ergonomics of the thermal environment - Estimation of
+// thermal insulation and water vapour resistance of a clothing ensemble.
+// https://www.iso.org/standard/39257.html
+// JOS-3 source: Takahashi et al., Energy and Buildings 231 (2021) 110575.
+// https://doi.org/10.1016/j.enbuild.2020.110575
+
 const insulationContract = scenarioContract["x-htmc"].clothingInsulation;
 
 export const ISO_9920_INTERCEPT_CLO = insulationContract.iso9920InterceptClo;
